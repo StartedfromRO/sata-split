@@ -7,6 +7,13 @@
   <meta name="description" content="A beautiful, interactive expense splitter with real-time database sync and smart debt simplification. Split equally, unequally, by shares or percentages.">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
+  
+  <!-- iOS Web App Specific Metadata -->
+  <link rel="apple-touch-icon" href="logo.jpg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SATA Split">
+  
   <!-- Load Configuration First -->
   <script src="config.js"></script>
 </head>
@@ -645,6 +652,16 @@
       </div>
     </div>
   </dialog>
+
+  <!-- iOS PWA Install Prompt -->
+  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
+    <div style="font-size: 1.5rem; flex-shrink: 0;">📱</div>
+    <div style="flex: 1; font-size: 0.8rem; line-height: 1.4; color: var(--text-primary);">
+      <strong>Add to Home Screen</strong><br>
+      Tap the <span style="font-weight: bold; color: var(--primary-color);">Share button</span> (square with arrow up) at the bottom of Safari, scroll down, and select <strong>"Add to Home Screen"</strong> to use SATA Split as an app!
+    </div>
+    <button type="button" id="btn-close-ios-prompt" class="dialog-close-btn" style="position: static; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer;">&times;</button>
+  </div>
 
   <!-- Load main app logic -->
   <script type="module" src="app.js"></script>

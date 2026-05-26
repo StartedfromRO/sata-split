@@ -301,6 +301,7 @@ class SataSplitApp {
 
     this.switchGroup(groupToLoad);
     this.setupEventListeners();
+    this.checkIosInstallPrompt();
   }
 
   // --- Real-time state syncing ---
@@ -1796,6 +1797,34 @@ class SataSplitApp {
     document.getElementById("btn-open-changelog").addEventListener("click", () => {
       document.getElementById("changelog-dialog").showModal();
     });
+  }
+
+  checkIosInstallPrompt() {
+    // Detect if device is iOS (iPhone/iPad/iPod)
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    // Detect if page is running in standalone mode (i.e. already installed)
+    const isStandalone = window.navigator.standalone === true || 
+      window.matchMedia('(display-mode: standalone)').matches;
+
+    // Check if user dismissed prompt previously
+    const isDismissed = localStorage.getItem("ios_pwa_prompt_dismissed") === "true";
+
+    if (isIos && !isStandalone && !isDismissed) {
+      const promptEl = document.getElementById("ios-install-prompt");
+      if (promptEl) {
+        promptEl.style.display = "flex";
+        
+        const closeBtn = document.getElementById("btn-close-ios-prompt");
+        if (closeBtn) {
+          closeBtn.addEventListener("click", () => {
+            promptEl.style.display = "none";
+            localStorage.setItem("ios_pwa_prompt_dismissed", "true");
+          });
+        }
+      }
+    }
   }
 }
 

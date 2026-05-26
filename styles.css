@@ -1155,3 +1155,9 @@ body.light-theme .theme-toggle-btn:hover {
 body.light-theme .btn-member-bank:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+/* iOS PWA Install Prompt Animation */
+@keyframes slide-up {
+  from { transform: translate(-50%, 100%); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
