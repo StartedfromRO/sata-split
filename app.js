@@ -76,6 +76,12 @@ class LocalStorageAdapter {
     localStorage.setItem(this.storageKey, JSON.stringify(groups));
   }
 
+  async deleteGroup(id) {
+    const groups = await this.getGroups();
+    delete groups[id];
+    localStorage.setItem(this.storageKey, JSON.stringify(groups));
+  }
+
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
     const id = "group_" + Math.random().toString(36).substring(2, 11);
     const bankDetails = {};
@@ -164,6 +170,17 @@ class FirestoreAdapter {
     const docRef = doc(this.db, this.collectionName, group.id);
     await setDoc(docRef, group);
     this.trackRecentGroup(group.id);
+  }
+
+  async deleteGroup(id) {
+    const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const docRef = doc(this.db, this.collectionName, id);
+    await deleteDoc(docRef);
+    
+    // Also remove from recent groups list in localStorage
+    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
+    const updatedIds = recentIds.filter(x => x !== id);
+    localStorage.setItem("fairshare_recent_groups", JSON.stringify(updatedIds));
   }
 
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
@@ -1612,10 +1629,23 @@ class SataSplitApp {
       document.getElementById("cloud-setup-dialog").showModal();
     });
 
-    // 12. Load Demo Data
-    document.getElementById("btn-load-demo-data").addEventListener("click", () => {
-      if (confirm("This will load a complete Penang road trip demo group with preloaded bills and balances. Proceed?")) {
-        this.loadDemoData();
+    // 12. Delete Active Group
+    document.getElementById("btn-delete-active-group").addEventListener("click", async () => {
+      const groupName = this.activeGroup.name;
+      const groupId = this.activeGroup.id;
+      
+      if (confirm(`Are you sure you want to permanently delete the group "${groupName}"? This action cannot be undone.`)) {
+        try {
+          await this.storage.deleteGroup(groupId);
+          this.showToast(`Group "${groupName}" deleted.`, "success");
+          document.getElementById("group-dialog").close();
+          
+          // Switch back to default-group
+          this.switchGroup("default-group");
+        } catch (err) {
+          console.error("Failed to delete group:", err);
+          this.showToast("Delete failed: " + err.message, "error");
+        }
       }
     });
 
