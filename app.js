@@ -1791,6 +1791,11 @@ class SataSplitApp {
       document.getElementById("bank-edit-qr-preview").src = "";
       document.getElementById("bank-edit-qr-preview-container").style.display = "none";
     });
+
+    // 15. Open Changelog Dialog
+    document.getElementById("btn-open-changelog").addEventListener("click", () => {
+      document.getElementById("changelog-dialog").showModal();
+    });
   }
 }
 

@@ -55,6 +55,11 @@
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
         </button>
+        
+        <!-- Changelog Button -->
+        <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
+          📜
+        </button>
       </div>
     </header>
 
@@ -575,6 +580,68 @@
       
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
         <button type="button" class="btn btn-primary" onclick="document.getElementById('cloud-setup-dialog').close()">Got it!</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Changelog / Release Notes -->
+  <dialog id="changelog-dialog">
+    <div class="dialog-card" style="max-width: 500px;">
+      <div class="dialog-header">
+        <h2>📜 SATA Split Changelog</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('changelog-dialog').close()">&times;</button>
+      </div>
+      
+      <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+        
+        <!-- v1.2.0 -->
+        <div class="changelog-version">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.2.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-05-26</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Logo & Group Control Update</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li>Custom SATA Kuala Lumpur brand logo and favicon integrated.</li>
+            <li>Implemented permanent group deletion inside group settings.</li>
+            <li>Auto-initialize empty bank account configurations when creating a group or adding new members.</li>
+            <li>Removed obsolete Quick Actions sidebar section.</li>
+          </ul>
+        </div>
+        
+        <!-- v1.1.0 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--text-muted); color: var(--bg-primary); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.1.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-05-26</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Bank Details & QR Sync</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li>Added bank name, holder, and account number setup for all members.</li>
+            <li>Added DuitNow/Bank QR code screenshot upload feature.</li>
+            <li>Canvas compression (max 350px width/height) to fit within Firestore/LocalStorage limits.</li>
+            <li>Dynamic QR display inside "Settle Up" and "View Bank Details" modals.</li>
+          </ul>
+        </div>
+        
+        <!-- v1.0.0 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--text-muted); color: var(--bg-primary); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.0.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-05-25</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Initial Release</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li>Core Splitwise engine launched with equal/unequal/percentage splits.</li>
+            <li>Greedy debt simplification solver (reduces multi-party IOUs).</li>
+            <li>Real-time cloud database sync (Firestore) and offline fallback (LocalStorage).</li>
+          </ul>
+        </div>
+        
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('changelog-dialog').close()">Got it!</button>
       </div>
     </div>
   </dialog>
