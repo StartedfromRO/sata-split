@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SATA Split - Smart Expense Splitter</title>
+  <meta name="description" content="A beautiful, interactive expense splitter with real-time database sync and smart debt simplification. Split equally, unequally, by shares or percentages.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/jpeg" href="logo.jpg">
+  <!-- Load Configuration First -->
+  <script src="config.js"></script>
+</head>
+<body>
+  
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="glass-panel animate-fade-in">
+      <div class="logo-section">
+        <img class="logo-img" src="logo.jpg" alt="SATA Logo">
+        <div>
+          <h1 class="logo-text">SATA Split</h1>
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Pay what you owe fool!</span>
+        </div>
+      </div>
+      
+      <div class="controls-section">
+        <!-- Group Selector -->
+        <div class="select-wrapper">
+          <select id="group-select" class="select-input" aria-label="Select Group">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        
+        <!-- Current User Selector -->
+        <div class="select-wrapper">
+          <select id="user-select" class="select-input" aria-label="Select Active User (You)">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+        
+        <!-- Cloud Sync Badge -->
+        <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
+          <span class="dot"></span>
+          <span class="label">Local Mode</span>
+        </button>
+        
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
+          <svg class="sun-icon" style="display: none;" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"></circle>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Banner -->
+    <section class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
+      <div class="glass-panel stat-card total">
+        <div class="stat-label">Total Group Spend</div>
+        <div id="stat-total-spend" class="stat-value">$0.00</div>
+      </div>
+      
+      <div class="glass-panel stat-card owed">
+        <div class="stat-label">You Are Owed</div>
+        <div id="stat-you-are-owed" class="stat-value success">$0.00</div>
+      </div>
+      
+      <div class="glass-panel stat-card owe">
+        <div class="stat-label">You Owe</div>
+        <div id="stat-you-owe" class="stat-value danger">$0.00</div>
+      </div>
+      
+      <div class="glass-panel stat-card net">
+        <div class="stat-label">Your Net Balance</div>
+        <div id="stat-net-balance" class="stat-value">$0.00</div>
+      </div>
+    </section>
+
+    <!-- Dashboard Body -->
+    <main class="dashboard-grid">
+      
+      <!-- Main Content Column -->
+      <section class="glass-panel animate-fade-in" style="animation-delay: 0.2s;">
+        <!-- Tabs Header -->
+        <nav class="tabs-header">
+          <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
+          <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
+        </nav>
+        
+        <!-- Tab Content: Expenses -->
+        <div id="tab-content-expenses" class="tab-content active">
+          <div class="filters-bar">
+            <!-- Search -->
+            <div class="search-input-wrapper">
+              <svg class="search-icon-svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="M21 21l-4.35-4.35"></path>
+              </svg>
+              <input type="text" id="expense-search" class="search-input" placeholder="Search expenses by name...">
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="select-wrapper">
+              <select id="expense-filter-category" class="select-input" aria-label="Filter by Category">
+                <option value="all">All Categories</option>
+                <option value="meals">🍔 Meals</option>
+                <option value="transport">🚗 Transport</option>
+                <option value="lodging">🏨 Lodging</option>
+                <option value="groceries">🛒 Groceries</option>
+                <option value="entertainment">🍿 Entertainment</option>
+                <option value="utilities">⚡ Utilities</option>
+                <option value="other">📦 Other</option>
+              </select>
+            </div>
+            
+            <!-- Add Expense Button -->
+            <button id="btn-open-expense-dialog" class="btn btn-primary">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 0.25rem;">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              Add Expense
+            </button>
+          </div>
+          
+          <!-- Expenses List Container -->
+          <div id="expenses-list" class="expenses-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        
+        <!-- Tab Content: Balances -->
+        <div id="tab-content-balances" class="tab-content">
+          <div class="balances-section">
+            
+            <!-- Per-User Balances -->
+            <div>
+              <h3 style="margin-bottom: 1rem;">Group Member Balances</h3>
+              <div id="balances-list" class="balances-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+            
+            <!-- Debt Simplification & Payments -->
+            <div>
+              <h3 style="margin-bottom: 1rem;">Simplified Settlements</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Our algorithm calculates the minimal number of transactions required to settle everyone's balances.
+              </p>
+              <div id="debts-list" class="debts-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+            
+          </div>
+          
+          <!-- Settlement Ledger (History of Settle Ups) -->
+          <div style="margin-top: 2rem; border-top: 1px solid var(--surface-border); padding-top: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">Settlement Payments History</h3>
+            <div id="settlements-history-list" class="expenses-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Sidebar Column -->
+      <aside class="sidebar-panel">
+        
+        <!-- Members List Panel -->
+        <div class="glass-panel animate-fade-in" style="animation-delay: 0.3s;">
+          <div class="sidebar-title-row">
+            <h3>Group Members</h3>
+            <button id="btn-open-group-dialog" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+              Manage Group
+            </button>
+          </div>
+          <div id="sidebar-members-list" class="members-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        
+        <!-- Share Link Panel -->
+        <div class="glass-panel animate-fade-in" style="animation-delay: 0.4s;">
+          <h3>Share with Friends</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">
+            Send this link to group members so they can view, add, and sync expenses with you!
+          </p>
+          <div class="share-card-input-group">
+            <span id="share-url-text" class="share-url-input">Loading link...</span>
+            <button id="btn-copy-share-url" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" title="Copy to Clipboard">
+              Copy
+            </button>
+          </div>
+        </div>
+        
+        <!-- Info Helper Panel -->
+        <div id="demo-data-panel" class="glass-panel animate-fade-in" style="animation-delay: 0.5s;">
+          <h3>Quick Actions</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem; margin-bottom: 1rem;">
+            New to the app? Prepopulate the active group with sample bills and member balances to test the UI.
+          </p>
+          <button id="btn-load-demo-data" class="btn btn-secondary" style="width: 100%;">
+            ⚡ Preload Demo Group Data
+          </button>
+        </div>
+        
+      </aside>
+      
+    </main>
+    
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- DIALOG: Add / Edit Expense -->
+  <dialog id="expense-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2 id="expense-dialog-title">Add New Expense</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('expense-dialog').close()">&times;</button>
+      </div>
+      
+      <form id="expense-form" method="dialog">
+        <!-- Hidden input for editing -->
+        <input type="hidden" id="expense-id-input">
+        
+        <!-- Description -->
+        <div class="form-group">
+          <label for="expense-desc">Description</label>
+          <input type="text" id="expense-desc" class="form-input" placeholder="e.g. Flight Tickets, Thai Dinner" required autocomplete="off">
+        </div>
+        
+        <div class="form-row">
+          <!-- Amount -->
+          <div class="form-group">
+            <label for="expense-amount">Amount</label>
+            <input type="number" id="expense-amount" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+          </div>
+          <!-- Date -->
+          <div class="form-group">
+            <label for="expense-date">Date</label>
+            <input type="date" id="expense-date" class="form-input" required>
+          </div>
+        </div>
+        
+        <!-- Category Selector -->
+        <div class="form-group">
+          <label>Category</label>
+          <div class="category-select-grid">
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="meals" checked>
+              <span class="cat-icon">🍔</span>
+              <span>Meals</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="transport">
+              <span class="cat-icon">🚗</span>
+              <span>Transport</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="lodging">
+              <span class="cat-icon">🏨</span>
+              <span>Lodging</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="groceries">
+              <span class="cat-icon">🛒</span>
+              <span>Groceries</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="entertainment">
+              <span class="cat-icon">🍿</span>
+              <span>Entertainment</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="utilities">
+              <span class="cat-icon">⚡</span>
+              <span>Utilities</span>
+            </label>
+            <label class="category-option-label">
+              <input type="radio" name="expense-category" value="other">
+              <span class="cat-icon">📦</span>
+              <span>Other</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Paid By -->
+        <div class="form-group">
+          <label for="expense-paid-by">Paid By</label>
+          <div class="select-wrapper">
+            <select id="expense-paid-by" class="select-input" style="width: 100%;">
+              <!-- Dynamically populated members -->
+            </select>
+          </div>
+        </div>
+        
+        <!-- Split Type Selector -->
+        <div class="form-group">
+          <label>Split Method</label>
+          <div class="split-type-selector">
+            <label class="split-type-label">
+              <input type="radio" name="split-type" value="equal" checked>
+              Equally
+            </label>
+            <label class="split-type-label">
+              <input type="radio" name="split-type" value="exact">
+              Unequally
+            </label>
+            <label class="split-type-label">
+              <input type="radio" name="split-type" value="shares">
+              Shares
+            </label>
+            <label class="split-type-label">
+              <input type="radio" name="split-type" value="percentage">
+              Percent
+            </label>
+          </div>
+        </div>
+        
+        <!-- Split Dynamic Container (Unequal inputs) -->
+        <div class="form-group" style="margin-top: 0.5rem;">
+          <label id="split-details-label">Split Details</label>
+          <div id="split-members-list" class="split-members-container">
+            <!-- Dynamically generated inputs based on members and split mode -->
+          </div>
+          <div id="split-warning" class="split-warning">Warning: Total does not match amount!</div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('expense-dialog').close()">Cancel</button>
+          <button type="submit" id="btn-save-expense" class="btn btn-primary">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Settle Up Payment -->
+  <dialog id="settle-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2>Record Settlement</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('settle-dialog').close()">&times;</button>
+      </div>
+      
+      <form id="settle-form" method="dialog">
+        <!-- Payer -->
+        <div class="form-group">
+          <label for="settle-payer">Who paid?</label>
+          <div class="select-wrapper">
+            <select id="settle-payer" class="select-input" style="width: 100%;">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+        
+        <!-- Recipient -->
+        <div class="form-group">
+          <label for="settle-recipient">Who was paid?</label>
+          <div class="select-wrapper">
+            <select id="settle-recipient" class="select-input" style="width: 100%;">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+        
+        <!-- Amount -->
+        <div class="form-group">
+          <label for="settle-amount">Amount Paid</label>
+          <input type="number" id="settle-amount" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+        
+        <!-- Recipient Bank Details Display -->
+        <div id="settle-bank-details" style="display: none; padding: 0.85rem; background: rgba(99, 102, 241, 0.05); border: 1px solid var(--surface-border); border-radius: var(--radius-md); margin-top: 1rem;">
+          <h4 style="font-size: 0.85rem; color: var(--primary-color); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">🏦 Recipient Bank Details</h4>
+          <div style="font-size: 0.85rem;">
+            <div><strong>Bank Name:</strong> <span id="settle-bank-name">-</span></div>
+            <div style="margin: 0.2rem 0; display: flex; justify-content: space-between; align-items: center;">
+              <div><strong>Account Number:</strong> <span id="settle-bank-acct">-</span></div>
+              <button type="button" id="btn-copy-settle-acct" class="action-btn-sm" style="padding:0.15rem 0.35rem; font-size:0.75rem; border:1px solid var(--surface-border); border-radius:4px;" title="Copy to clipboard">📋 Copy</button>
+            </div>
+            <div><strong>Account Name:</strong> <span id="settle-bank-holder">-</span></div>
+            
+            <!-- Settle QR display -->
+            <div id="settle-qr-container" style="display: none; flex-direction: column; align-items: center; gap: 0.35rem; margin-top: 0.85rem; border-top: 1px dashed var(--surface-border); padding-top: 0.85rem;">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Scan QR to Transfer</span>
+              <img id="settle-qr-img" src="" alt="Payment QR Code" style="max-width: 140px; max-height: 140px; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); background: white; padding: 0.35rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('settle-dialog').close()">Cancel</button>
+          <button type="submit" class="btn btn-success">Save Settlement</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Member Bank Details -->
+  <dialog id="member-bank-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2 id="bank-dialog-title">Bank Details</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('member-bank-dialog').close()">&times;</button>
+      </div>
+      
+      <div id="bank-details-view" style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- View details -->
+        <div class="tutorial-step" style="background: rgba(99, 102, 241, 0.03); border-color: var(--primary-color);">
+          <div style="margin-bottom: 0.5rem;"><strong>Bank Name:</strong> <span id="bank-view-name" style="font-weight:600;">-</span></div>
+          <div style="margin-bottom: 0.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+            <div><strong>Account Number:</strong> <span id="bank-view-acct" style="font-weight:700; font-size:1.05rem; letter-spacing:0.02em; color: var(--primary-color);">-</span></div>
+            <button type="button" id="btn-copy-bank-acct" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">📋 Copy</button>
+          </div>
+          <div><strong>Account Holder (Full Name):</strong> <span id="bank-view-holder" style="font-weight:600;">-</span></div>
+        </div>
+        
+        <!-- QR Code display -->
+        <div id="bank-view-qr-container" style="display: none; flex-direction: column; align-items: center; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+          <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">Scan QR to Pay</span>
+          <img id="bank-view-qr-img" src="" alt="Payment QR Code" style="max-width: 180px; max-height: 180px; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); background: white; padding: 0.5rem;">
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+          <button type="button" id="btn-toggle-bank-edit" class="btn btn-secondary" style="font-size: 0.85rem;">✏️ Edit Details</button>
+          <button type="button" class="btn btn-primary" onclick="document.getElementById('member-bank-dialog').close()">Done</button>
+        </div>
+      </div>
+      
+      <!-- Edit form (initially hidden) -->
+      <form id="bank-details-form" method="dialog" style="display: none; flex-direction: column; gap: 1rem;">
+        <input type="hidden" id="bank-member-name">
+        
+        <div class="form-group">
+          <label for="bank-input-name">Bank Name</label>
+          <input type="text" id="bank-input-name" class="form-input" placeholder="e.g. Maybank, CIMB, DBS" required autocomplete="off">
+        </div>
+        
+        <div class="form-group">
+          <label for="bank-input-acct">Account Number</label>
+          <input type="text" id="bank-input-acct" class="form-input" placeholder="e.g. 1642234455" required autocomplete="off">
+        </div>
+        
+        <div class="form-group">
+          <label for="bank-input-holder">Account Holder's Full Name</label>
+          <input type="text" id="bank-input-holder" class="form-input" placeholder="e.g. Ban Lim" required autocomplete="off">
+        </div>
+        
+        <!-- QR upload -->
+        <div class="form-group">
+          <label for="bank-input-qr">Payment QR Code (Optional)</label>
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Upload a screenshot of your DuitNow QR, TNG QR, or bank QR.</p>
+          <input type="file" id="bank-input-qr" class="form-input" accept="image/*" style="padding: 0.5rem;">
+          <!-- Preview in edit form -->
+          <div id="bank-edit-qr-preview-container" style="display: none; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+            <img id="bank-edit-qr-preview" src="" alt="QR Preview" style="max-width: 80px; max-height: 80px; border-radius: 4px; border: 1px solid var(--surface-border);">
+            <button type="button" id="btn-remove-qr" class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Remove Image</button>
+          </div>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+          <button type="button" id="btn-cancel-bank-edit" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Bank Info</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Manage Group & Members -->
+  <dialog id="group-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2>Manage Group Settings</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('group-dialog').close()">&times;</button>
+      </div>
+      
+      <form id="group-form" method="dialog">
+        <!-- Group Name -->
+        <div class="form-group">
+          <label for="group-name-input">Group Name</label>
+          <input type="text" id="group-name-input" class="form-input" placeholder="e.g. Road Trip, Housemates" required>
+        </div>
+        
+        <!-- Currency symbol -->
+        <div class="form-group">
+          <label for="group-currency-input">Currency Symbol</label>
+          <div class="select-wrapper">
+            <select id="group-currency-input" class="select-input" style="width: 100%;">
+              <option value="$">$ (USD)</option>
+              <option value="RM">RM (MYR)</option>
+              <option value="€">€ (EUR)</option>
+              <option value="£">£ (GBP)</option>
+              <option value="S$">S$ (SGD)</option>
+              <option value="¥">¥ (JPY)</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Manage Members -->
+        <div class="form-group">
+          <label>Manage Members</label>
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+            Add members by name. Note: Existing members cannot be deleted if they have expenses assigned to them.
+          </p>
+          <div id="group-members-list" class="split-members-container" style="max-height: 150px;">
+            <!-- Dynamically populated member names with remove buttons -->
+          </div>
+          
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+            <input type="text" id="new-member-name" class="form-input" placeholder="Add member name..." style="padding: 0.5rem;">
+            <button type="button" id="btn-add-member-item" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Add</button>
+          </div>
+        </div>
+        
+        <!-- Create new group button toggle -->
+        <div style="margin-top: 1rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" id="btn-create-new-group" class="btn btn-secondary" style="font-size: 0.85rem; border-color: var(--primary-color); color: var(--primary-color);">
+            ＋ Create Brand New Group
+          </button>
+          
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('group-dialog').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Cloud Sync / Firebase Setup Tutorial -->
+  <dialog id="cloud-setup-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2>Setup Shared Cloud Database</h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('cloud-setup-dialog').close()">&times;</button>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 450px; overflow-y: auto; padding-right: 0.5rem;">
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">
+          By default, SATA Split stores everything locally in your browser (LocalStorage). To enable real-time collaboration with friends via a shared link, connect the app to a free Google Firebase Firestore database:
+        </p>
+        
+        <div class="tutorial-step">
+          <h4>1. Create a Firebase Project</h4>
+          <p>Go to the <a href="https://console.firebase.google.com" target="_blank" style="text-decoration: underline; font-weight: 600;">Firebase Console</a>, sign in with your Google account, and click <strong>"Create a project"</strong>. Follow the prompts (Google Analytics is optional).</p>
+        </div>
+        
+        <div class="tutorial-step">
+          <h4>2. Set up Firestore Database</h4>
+          <p>In the project sidebar, go to <strong>Firestore Database</strong> and click <strong>"Create database"</strong>.</p>
+          <p style="margin-top: 0.25rem;">Choose <strong>"Start in test mode"</strong> (allows reading/writing without login setup) and select a location, then click enable.</p>
+        </div>
+        
+        <div class="tutorial-step">
+          <h4>3. Register a Web App</h4>
+          <p>On your Firebase Project Overview page, click the web icon (<code>&lt;/&gt;</code>) to register an app. Name it "SATA Split".</p>
+          <p style="margin-top: 0.25rem;">Copy the <code>firebaseConfig</code> object containing your <code>apiKey</code>, <code>projectId</code>, etc.</p>
+        </div>
+        
+        <div class="tutorial-step">
+          <h4>4. Update Your Configuration Code</h4>
+          <p>Open the file <a href="file:///Users/shiban/.gemini/antigravity/scratch/splitwise-app/config.js" style="text-decoration: underline; font-weight: 600;">config.js</a> in your project, uncomment the configuration block, and paste your values there.</p>
+        </div>
+        
+        <div class="tutorial-step">
+          <h4>5. Push to GitHub</h4>
+          <p>Commit your files and publish your repository to GitHub. Enable <strong>GitHub Pages</strong> in the repository settings to deploy the application. Anyone opening that link can now sync expenses collaboratively!</p>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('cloud-setup-dialog').close()">Got it!</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Load main app logic -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
