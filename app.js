@@ -178,6 +178,8 @@ class FirestoreAdapter {
       unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           callback(docSnap.data());
+        } else {
+          callback(null);
         }
       }, (error) => {
         console.error("Firestore listen error:", error);
@@ -271,7 +273,7 @@ class SataSplitApp {
     }
 
     // Start listening to the new group
-    this.unsubscribeActiveListener = this.storage.listenToGroup(groupId, (groupData) => {
+    this.unsubscribeActiveListener = this.storage.listenToGroup(groupId, async (groupData) => {
       if (groupData) {
         this.activeGroup = groupData;
         localStorage.setItem("fairshare_last_active_group", groupId);
@@ -283,6 +285,28 @@ class SataSplitApp {
         
         this.updateGroupSelects();
         this.renderDashboard();
+      } else {
+        // Group data is null (does not exist in storage)
+        if (groupId === "default-group") {
+          console.log("default-group not found. Creating it...");
+          const defaultGroup = {
+            id: "default-group",
+            name: "Apartment Share",
+            currency: "$",
+            members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
+            expenses: [],
+            settlements: [],
+            bankDetails: {
+              "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455" },
+              "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210" }
+            },
+            updatedAt: Date.now()
+          };
+          await this.storage.saveGroup(defaultGroup);
+        } else {
+          this.showToast("Group not found. Redirecting to default group.", "error");
+          this.switchGroup("default-group");
+        }
       }
     });
 
