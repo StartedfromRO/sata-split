@@ -47,8 +47,12 @@ class LocalStorageAdapter {
         expenses: [],
         settlements: [],
         bankDetails: {
-          "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455" },
-          "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210" }
+          "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
+          "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
+          "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
+          "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
+          "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
+          "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
         },
         updatedAt: Date.now()
       };
@@ -74,6 +78,15 @@ class LocalStorageAdapter {
 
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
     const id = "group_" + Math.random().toString(36).substring(2, 11);
+    const bankDetails = {};
+    initialMembers.forEach(m => {
+      bankDetails[m] = {
+        bankName: "",
+        accountNumber: "",
+        fullName: m === "Ban" ? "Ban Lim" : m === "ED" ? "ED Tan" : m,
+        qrCode: ""
+      };
+    });
     const newGroup = {
       id,
       name,
@@ -81,7 +94,7 @@ class LocalStorageAdapter {
       members: initialMembers,
       expenses: [],
       settlements: [],
-      bankDetails: {},
+      bankDetails,
       updatedAt: Date.now()
     };
     await this.saveGroup(newGroup);
@@ -155,6 +168,15 @@ class FirestoreAdapter {
 
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
     const id = "cloud_" + Math.random().toString(36).substring(2, 11);
+    const bankDetails = {};
+    initialMembers.forEach(m => {
+      bankDetails[m] = {
+        bankName: "",
+        accountNumber: "",
+        fullName: m === "Ban" ? "Ban Lim" : m === "ED" ? "ED Tan" : m,
+        qrCode: ""
+      };
+    });
     const newGroup = {
       id,
       name,
@@ -162,7 +184,7 @@ class FirestoreAdapter {
       members: initialMembers,
       expenses: [],
       settlements: [],
-      bankDetails: {},
+      bankDetails,
       updatedAt: Date.now()
     };
     await this.saveGroup(newGroup);
@@ -297,8 +319,12 @@ class SataSplitApp {
             expenses: [],
             settlements: [],
             bankDetails: {
-              "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455" },
-              "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210" }
+              "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
+              "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
+              "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
+              "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
+              "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
+              "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
             },
             updatedAt: Date.now()
           };
@@ -1528,6 +1554,16 @@ class SataSplitApp {
       }
       
       this.activeGroup.members.push(name);
+      
+      // Initialize bank details entry for the newly added member
+      this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
+      this.activeGroup.bankDetails[name] = {
+        bankName: "",
+        accountNumber: "",
+        fullName: name,
+        qrCode: ""
+      };
+      
       nameInput.value = "";
       this.openGroupSettings(); // Refresh
     });
