@@ -1,0 +1,60 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// This security rules file assumes the following data structures:
+//
+// Collection: fairshare_groups
+// Document ID: groupId (prefixed with 'cloud_')
+// Fields:
+//   - id: string (required, matching document ID) - Unique ID for the group
+//   - name: string (required, 1-100 characters) - Group name
+//   - currency: string (required, 1-10 characters) - Currency symbol/code (e.g. RM)
+//   - members: list of strings (required, max 50 members) - Member names
+//   - expenses: list of maps (required, max 1000 items) - Expenses list
+//   - settlements: list of maps (required, max 1000 items) - Settlements list
+//   - bankDetails: map of maps (required, max 50 items) - Member bank and QR code configurations
+//   - updatedAt: number (required) - Millisecond timestamp of last edit
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny: Secure-by-default for any other collection
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Rules for fairshare_groups collection
+    match /fairshare_groups/{groupId} {
+      // Allow read access to anyone who has the share link (groupId)
+      allow read: if true;
+      
+      // Allow create and update only if document shape is fully valid and matches groupId
+      allow create, update: if isValidGroup(request.resource.data) && groupId == request.resource.data.id;
+      
+      // Allow deletion of the group if needed (e.g., when deleting a group in settings)
+      allow delete: if true;
+    }
+  }
+}
+
+// ===============================================================
+// Helper & Validation Functions
+// ===============================================================
+
+// Validates the structure, types, and constraints of a group document
+function isValidGroup(data) {
+  return data.keys().hasAll(['id', 'name', 'currency', 'members', 'expenses', 'settlements', 'bankDetails', 'updatedAt']) &&
+         data.keys().hasOnly(['id', 'name', 'currency', 'members', 'expenses', 'settlements', 'bankDetails', 'updatedAt']) &&
+         data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+         data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+         data.currency is string && data.currency.size() > 0 && data.currency.size() <= 10 &&
+         data.members is list && data.members.size() <= 50 &&
+         data.expenses is list && data.expenses.size() <= 1000 &&
+         data.settlements is list && data.settlements.size() <= 1000 &&
+         data.bankDetails is map && data.bankDetails.keys().size() <= 50 &&
+         data.updatedAt is number;
+}
