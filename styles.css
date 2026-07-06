@@ -2,63 +2,63 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Dark Mode Palette (Default Apple Inset Grouped style) */
-  --bg-gradient: radial-gradient(circle at 0% 0%, #1c1c1e 0%, #000000 100%);
-  --bg-color: #000000;
-  --surface-color: rgba(44, 44, 46, 0.7);
-  --surface-border: rgba(255, 255, 255, 0.1);
+  /* Dark Mode Palette (Futuristic Liquid Glass Dark) */
+  --bg-gradient: radial-gradient(circle at 50% 50%, #0a0712 0%, #010103 100%);
+  --bg-color: #010103;
+  --surface-color: rgba(22, 22, 26, 0.65);
+  --surface-border: rgba(255, 255, 255, 0.12);
   --text-primary: #ffffff;
-  --text-secondary: #eaeaea;
+  --text-secondary: #f5f5f7;
   --text-muted: #8e8e93;
   
-  --primary-color: #0A84FF; /* iOS System Blue */
-  --primary-hover: #0071e3;
-  --primary-light: rgba(10, 132, 255, 0.15);
+  --primary-color: #00E5FF; /* Futuristic Electric Cyan */
+  --primary-hover: #00cce5;
+  --primary-light: rgba(0, 229, 255, 0.15);
   
-  --success-color: #30D158; /* iOS System Green */
-  --success-light: rgba(48, 209, 88, 0.15);
-  --danger-color: #FF453A; /* iOS System Red */
-  --danger-light: rgba(255, 69, 58, 0.15);
-  --warning-color: #FF9F0A; /* iOS System Orange */
+  --success-color: #00FF87; /* Neon Mint Green */
+  --success-light: rgba(0, 255, 135, 0.15);
+  --danger-color: #FF2A6D; /* Laser Red */
+  --danger-light: rgba(255, 42, 109, 0.15);
+  --warning-color: #FFE600; /* Laser Yellow */
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.2);
+  --shadow-glass: 0 10px 40px 0 rgba(0, 229, 255, 0.06);
   
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   
-  --transition-fast: 0.12s ease;
-  --transition-normal: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   
-  --glass-blur: blur(25px);
+  --glass-blur: blur(35px) saturate(220%);
 }
 
-/* Light Mode Palette (Apple Light Inset Grouped style) */
+/* Light Mode Palette (Futuristic Liquid Glass Light) */
 body.light-theme {
-  --bg-gradient: linear-gradient(185deg, #f2f2f7 0%, #e5e5ea 100%);
-  --bg-color: #f2f2f7;
-  --surface-color: rgba(255, 255, 255, 0.75);
-  --surface-border: rgba(0, 0, 0, 0.05);
-  --text-primary: #000000;
-  --text-secondary: #3a3a3c;
-  --text-muted: #8e8e93;
+  --bg-gradient: linear-gradient(185deg, #f5f5f7 0%, #d2d2d7 100%);
+  --bg-color: #f5f5f7;
+  --surface-color: rgba(255, 255, 255, 0.65);
+  --surface-border: rgba(0, 0, 0, 0.08);
+  --text-primary: #1d1d1f;
+  --text-secondary: #424245;
+  --text-muted: #86868b;
   
-  --primary-color: #007AFF; /* iOS Light Blue */
-  --primary-hover: #0056b3;
-  --primary-light: rgba(0, 122, 255, 0.08);
+  --primary-color: #7D52FF; /* Royal iOS Purple */
+  --primary-hover: #6336e5;
+  --primary-light: rgba(125, 82, 255, 0.1);
   
-  --success-color: #34C759; /* iOS Light Green */
-  --success-light: rgba(52, 199, 89, 0.08);
-  --danger-color: #FF3B30; /* iOS Light Red */
-  --danger-light: rgba(255, 59, 48, 0.08);
-  --warning-color: #FF9500; /* iOS Light Orange */
+  --success-color: #24b25b; /* Vivid Green */
+  --success-light: rgba(36, 178, 91, 0.08);
+  --danger-color: #e32227; /* Rich Red */
+  --danger-light: rgba(227, 34, 39, 0.08);
+  --warning-color: #f58220; /* Bright Orange */
   
-  --shadow-lg: 0 10px 15px -3px rgba(0, 122, 255, 0.05), 0 4px 6px -2px rgba(0, 122, 255, 0.02);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 122, 255, 0.06);
+  --shadow-lg: 0 15px 30px -5px rgba(125, 82, 255, 0.08), 0 4px 6px -2px rgba(125, 82, 255, 0.04);
+  --shadow-glass: 0 10px 40px 0 rgba(125, 82, 255, 0.05);
 }
 
 * {
@@ -1288,4 +1288,79 @@ body.light-theme .btn-member-bank:hover {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
   }
+}
+
+/* Animated Liquid Blobs Background (iOS 26 Style) */
+.liquid-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.28;
+  z-index: -2;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: opacity 1s ease;
+}
+
+body.light-theme .liquid-blob {
+  opacity: 0.12;
+  mix-blend-mode: multiply;
+  filter: blur(100px);
+}
+
+.blob-1 {
+  width: 45vw;
+  height: 45vw;
+  background: radial-gradient(circle, var(--primary-color) 0%, rgba(0, 229, 255, 0) 70%);
+  top: -10%;
+  left: -10%;
+  animation: liquid-float-1 25s infinite alternate ease-in-out;
+}
+
+.blob-2 {
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, #8b5cf6 0%, rgba(139, 92, 246, 0) 70%);
+  bottom: -15%;
+  right: -10%;
+  animation: liquid-float-2 30s infinite alternate ease-in-out;
+}
+
+.blob-3 {
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle, var(--success-color) 0%, rgba(0, 255, 135, 0) 70%);
+  top: 40%;
+  right: 15%;
+  animation: liquid-float-3 22s infinite alternate ease-in-out;
+}
+
+@keyframes liquid-float-1 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  100% { transform: translate(10%, 15%) scale(1.1) rotate(45deg); }
+}
+
+@keyframes liquid-float-2 {
+  0% { transform: translate(0, 0) scale(1.1) rotate(0deg); }
+  100% { transform: translate(-15%, -10%) scale(0.9) rotate(-60deg); }
+}
+
+@keyframes liquid-float-3 {
+  0% { transform: translate(0, 0) scale(0.9) rotate(0deg); }
+  100% { transform: translate(-10%, 15%) scale(1.1) rotate(90deg); }
+}
+
+/* Specular Liquid Glass Cards & Headers */
+.glass-panel, .dialog-card, .expense-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+body.light-theme .glass-panel, 
+body.light-theme .dialog-card, 
+body.light-theme .expense-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.5) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
