@@ -717,6 +717,7 @@ class SataSplitApp {
         settlementsHistory.appendChild(card);
       });
     }
+    this.renderActivityFeed();
   }
 
   renderExpensesList(balances) {
@@ -728,7 +729,9 @@ class SataSplitApp {
     const categoryVal = document.getElementById("expense-filter-category").value;
 
     const filtered = this.activeGroup.expenses.filter(exp => {
-      const matchSearch = exp.description.toLowerCase().includes(searchVal);
+      const matchSearch = exp.description.toLowerCase().includes(searchVal) || 
+                          (exp.category && exp.category.toLowerCase().includes(searchVal)) ||
+                          exp.paidBy.toLowerCase().includes(searchVal);
       const matchCat = categoryVal === "all" || exp.category === categoryVal;
       return matchSearch && matchCat;
     });
@@ -867,6 +870,7 @@ class SataSplitApp {
   async addExpense(expenseData) {
     if (!this.activeGroup) return;
     this.activeGroup.expenses.push(expenseData);
+    this.logActivity(`added expense "${expenseData.description}" of ${this.activeGroup.currency}${parseFloat(expenseData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
     this.showToast("Expense added successfully!", "success");
   }
@@ -875,7 +879,9 @@ class SataSplitApp {
     if (!this.activeGroup) return;
     const index = this.activeGroup.expenses.findIndex(e => e.id === id);
     if (index !== -1) {
+      const oldDesc = this.activeGroup.expenses[index].description;
       this.activeGroup.expenses[index] = { ...this.activeGroup.expenses[index], ...updatedData };
+      this.logActivity(`updated expense "${oldDesc}" to "${updatedData.description}" (${this.activeGroup.currency}${parseFloat(updatedData.amount).toFixed(2)})`, false);
       await this.triggerStateSave();
       this.showToast("Expense updated successfully!", "success");
     }
@@ -883,7 +889,10 @@ class SataSplitApp {
 
   async deleteExpense(id) {
     if (!this.activeGroup) return;
+    const exp = this.activeGroup.expenses.find(e => e.id === id);
+    const desc = exp ? exp.description : id;
     this.activeGroup.expenses = this.activeGroup.expenses.filter(e => e.id !== id);
+    this.logActivity(`deleted expense "${desc}"`, false);
     await this.triggerStateSave();
     this.showToast("Expense deleted.", "success");
   }
@@ -891,13 +900,17 @@ class SataSplitApp {
   async addSettlement(settlementData) {
     if (!this.activeGroup) return;
     this.activeGroup.settlements.push(settlementData);
+    this.logActivity(`recorded settlement: paid ${settlementData.recipient} ${this.activeGroup.currency}${parseFloat(settlementData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
     this.showToast("Payment recorded successfully!", "success");
   }
 
   async deleteSettlement(id) {
     if (!this.activeGroup) return;
+    const set = this.activeGroup.settlements.find(s => s.id === id);
+    const text = set ? `${set.payer} paid ${set.recipient} ${this.activeGroup.currency}${parseFloat(set.amount).toFixed(2)}` : "settlement";
     this.activeGroup.settlements = this.activeGroup.settlements.filter(s => s.id !== id);
+    this.logActivity(`deleted settlement: "${text}"`, false);
     await this.triggerStateSave();
     this.showToast("Settlement deleted.", "success");
   }
@@ -979,6 +992,11 @@ class SataSplitApp {
       detailsLabel.textContent = "Split by Share Ratios:";
     } else if (splitType === "percentage") {
       detailsLabel.textContent = "Split by Percentage (%):";
+    }
+
+    const equalHelpers = document.getElementById("split-equal-helpers");
+    if (equalHelpers) {
+      equalHelpers.style.display = splitType === "equal" ? "flex" : "none";
     }
 
     members.forEach(m => {
@@ -1449,21 +1467,37 @@ class SataSplitApp {
     // 4. Tab Navigation
     const tabExpenses = document.getElementById("tab-btn-expenses");
     const tabBalances = document.getElementById("tab-btn-balances");
+    const tabActivity = document.getElementById("tab-btn-activity");
     const contentExpenses = document.getElementById("tab-content-expenses");
     const contentBalances = document.getElementById("tab-content-balances");
+    const contentActivity = document.getElementById("tab-content-activity");
 
     tabExpenses.addEventListener("click", () => {
       tabExpenses.classList.add("active");
       tabBalances.classList.remove("active");
+      tabActivity.classList.remove("active");
       contentExpenses.classList.add("active");
       contentBalances.classList.remove("active");
+      contentActivity.classList.remove("active");
     });
 
     tabBalances.addEventListener("click", () => {
       tabBalances.classList.add("active");
       tabExpenses.classList.remove("active");
+      tabActivity.classList.remove("active");
       contentBalances.classList.add("active");
       contentExpenses.classList.remove("active");
+      contentActivity.classList.remove("active");
+    });
+
+    tabActivity.addEventListener("click", () => {
+      tabActivity.classList.add("active");
+      tabExpenses.classList.remove("active");
+      tabBalances.classList.remove("active");
+      contentActivity.classList.add("active");
+      contentExpenses.classList.remove("active");
+      contentBalances.classList.remove("active");
+      this.renderActivityFeed();
     });
 
     // 5. Search and Filters
@@ -1673,11 +1707,9 @@ class SataSplitApp {
       const accountNumber = document.getElementById("bank-input-acct").value.trim();
       const fullName = document.getElementById("bank-input-holder").value.trim();
       
-      console.log("Submitting bank details. Member:", member, "Bank Name:", bankName, "Acct Number:", accountNumber, "Holder:", fullName);
-      console.log("Saving QR Code of length:", this.editingQrDataUrl ? this.editingQrDataUrl.length : 0);
-
       this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
       this.activeGroup.bankDetails[member] = { bankName, accountNumber, fullName, qrCode: this.editingQrDataUrl || "" };
+      this.logActivity(`updated bank account details for ${member}`, false);
       
       try {
         await this.triggerStateSave();
@@ -1698,6 +1730,15 @@ class SataSplitApp {
           .catch(() => this.showToast("Failed to copy.", "error"));
       }
     });
+
+    document.getElementById("btn-copy-bank-holder").addEventListener("click", () => {
+      const name = document.getElementById("bank-view-holder").textContent;
+      if (name && name !== "—") {
+        navigator.clipboard.writeText(name)
+          .then(() => this.showToast("Account name copied!", "success"))
+          .catch(() => this.showToast("Failed to copy name.", "error"));
+      }
+    });
     
     document.getElementById("btn-copy-settle-acct").addEventListener("click", () => {
       const acct = document.getElementById("settle-bank-acct").textContent;
@@ -1705,6 +1746,76 @@ class SataSplitApp {
         navigator.clipboard.writeText(acct)
           .then(() => this.showToast("Account number copied!", "success"))
           .catch(() => this.showToast("Failed to copy.", "error"));
+      }
+    });
+
+    document.getElementById("btn-copy-settle-holder").addEventListener("click", () => {
+      const name = document.getElementById("settle-bank-holder").textContent;
+      if (name && name !== "-") {
+        navigator.clipboard.writeText(name)
+          .then(() => this.showToast("Account name copied!", "success"))
+          .catch(() => this.showToast("Failed to copy name.", "error"));
+      }
+    });
+
+    // Select All split checklist helper
+    document.getElementById("btn-split-select-all").addEventListener("click", () => {
+      const checkboxes = document.querySelectorAll(".split-member-chk");
+      checkboxes.forEach(chk => {
+        if (!chk.checked) {
+          chk.checked = true;
+          chk.dispatchEvent(new Event("change"));
+        }
+      });
+    });
+
+    // Clear All split checklist helper
+    document.getElementById("btn-split-clear-all").addEventListener("click", () => {
+      const checkboxes = document.querySelectorAll(".split-member-chk");
+      checkboxes.forEach(chk => {
+        if (chk.checked) {
+          chk.checked = false;
+          chk.dispatchEvent(new Event("change"));
+        }
+      });
+    });
+
+    // Drag-and-drop elements
+    const dropZone = document.getElementById("qr-drop-zone");
+    
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith("image/")) {
+        this.processQrImageFile(file);
+      } else {
+        this.showToast("Only image files are allowed for QR codes.", "error");
+      }
+    });
+
+    // Paste event handler
+    document.addEventListener("paste", (e) => {
+      const form = document.getElementById("bank-details-form");
+      if (form && form.style.display !== "none") {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+          if (item.kind === "file" && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            this.processQrImageFile(file);
+            this.showToast("QR code image pasted successfully!", "success");
+            e.preventDefault();
+          }
+        }
       }
     });
 
@@ -1736,53 +1847,7 @@ class SataSplitApp {
     // 14. QR Code Upload & Removal Listeners
     document.getElementById("bank-input-qr").addEventListener("change", (e) => {
       const file = e.target.files[0];
-      console.log("Selected QR file:", file);
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        console.log("FileReader loaded data URL of length:", event.target.result.length);
-        const img = new Image();
-        img.onload = () => {
-          console.log("Image loaded, dimensions:", img.width, img.height);
-          // Resize via canvas to max width/height of 350px to keep within limits
-          const canvas = document.createElement("canvas");
-          const maxDim = 350;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to jpeg to reduce base64 size
-          this.editingQrDataUrl = canvas.toDataURL("image/jpeg", 0.75);
-          console.log("Compressed QR URL of length:", this.editingQrDataUrl.length);
-          document.getElementById("bank-edit-qr-preview").src = this.editingQrDataUrl;
-          document.getElementById("bank-edit-qr-preview-container").style.display = "flex";
-        };
-        img.onerror = (err) => {
-          console.error("Image load error:", err);
-        };
-        img.src = event.target.result;
-      };
-      reader.onerror = (err) => {
-        console.error("FileReader error:", err);
-      };
-      reader.readAsDataURL(file);
+      this.processQrImageFile(file);
     });
 
     document.getElementById("btn-remove-qr").addEventListener("click", () => {
@@ -1796,6 +1861,109 @@ class SataSplitApp {
     // 15. Open Changelog Dialog
     document.getElementById("btn-open-changelog").addEventListener("click", () => {
       document.getElementById("changelog-dialog").showModal();
+    });
+  }
+
+  processQrImageFile(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      console.log("FileReader loaded data URL of length:", event.target.result.length);
+      const img = new Image();
+      img.onload = () => {
+        console.log("Image loaded, dimensions:", img.width, img.height);
+        const canvas = document.createElement("canvas");
+        const maxDim = 350;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        this.editingQrDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        console.log("Compressed QR URL of length:", this.editingQrDataUrl.length);
+        document.getElementById("bank-edit-qr-preview").src = this.editingQrDataUrl;
+        document.getElementById("bank-edit-qr-preview-container").style.display = "flex";
+      };
+      img.onerror = (err) => {
+        console.error("Image load error:", err);
+      };
+      img.src = event.target.result;
+    };
+    reader.onerror = (err) => {
+      console.error("FileReader error:", err);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async logActivity(actionText, saveImmediately = true) {
+    if (!this.activeGroup) return;
+    this.activeGroup.activities = this.activeGroup.activities || [];
+    
+    if (this.activeGroup.activities.length >= 100) {
+      this.activeGroup.activities.shift();
+    }
+
+    this.activeGroup.activities.push({
+      id: "act_" + Math.random().toString(36).substring(2, 11),
+      user: this.currentUser || "System",
+      action: actionText,
+      timestamp: Date.now()
+    });
+
+    if (saveImmediately) {
+      await this.triggerStateSave();
+    }
+  }
+
+  renderActivityFeed() {
+    const container = document.getElementById("activity-list");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const activities = this.activeGroup.activities || [];
+    if (activities.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="text-align: center; padding: 2rem 1rem; color: var(--text-muted);">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"></path></svg>
+          <p>No activity logs recorded yet in this group.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const sorted = [...activities].sort((a, b) => b.timestamp - a.timestamp);
+    sorted.forEach(act => {
+      const item = document.createElement("div");
+      item.className = "activity-item animate-fade-in";
+      
+      const date = new Date(act.timestamp);
+      const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      item.innerHTML = `
+        <div class="activity-text" style="color: var(--text-primary);">
+          <span class="activity-user" style="color: var(--primary-color); font-weight: 700;">${act.user}</span> ${act.action}
+        </div>
+        <div class="activity-meta" style="margin-top: 0.25rem;">
+          <span>${timeStr}</span>
+        </div>
+      `;
+      container.appendChild(item);
     });
   }
 

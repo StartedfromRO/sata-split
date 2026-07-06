@@ -1161,3 +1161,48 @@ body.light-theme .btn-member-bank:hover {
   from { transform: translate(-50%, 100%); opacity: 0; }
   to { transform: translate(-50%, 0); opacity: 1; }
 }
+
+/* QR Code Drag and Drop Zone */
+.qr-drop-zone.dragover {
+  border-color: var(--primary-color) !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  transform: scale(1.02);
+}
+
+/* Activity Feed Tab Styles */
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem;
+  background: var(--surface-bg);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.activity-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+}
+
+.activity-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.activity-user {
+  font-weight: 700;
+  color: var(--primary-color);
+}

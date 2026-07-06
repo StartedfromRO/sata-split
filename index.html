@@ -102,6 +102,7 @@
         <nav class="tabs-header">
           <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
           <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
+          <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
         </nav>
         
         <!-- Tab Content: Expenses -->
@@ -175,6 +176,15 @@
             <h3 style="margin-bottom: 1rem;">Settlement Payments History</h3>
             <div id="settlements-history-list" class="expenses-list">
               <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Tab Content: Activity Feed -->
+        <div id="tab-content-activity" class="tab-content">
+          <div class="activity-section">
+            <h3 style="margin-bottom: 1rem;">Group Activity Feed</h3>
+            <div id="activity-list" class="expenses-list">
+              <!-- Dynamically populated activity items -->
             </div>
           </div>
         </div>
@@ -329,7 +339,14 @@
         
         <!-- Split Dynamic Container (Unequal inputs) -->
         <div class="form-group" style="margin-top: 0.5rem;">
-          <label id="split-details-label">Split Details</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+            <label id="split-details-label" style="margin-bottom: 0;">Split Details</label>
+            <div id="split-equal-helpers" style="display: none; gap: 0.5rem; font-size: 0.75rem;">
+              <button type="button" id="btn-split-select-all" style="background: none; border: none; color: var(--primary-color); cursor: pointer; text-decoration: underline; font-size: 0.75rem; font-weight: 600; padding: 0;">Select All</button>
+              <span style="color: var(--text-muted);">|</span>
+              <button type="button" id="btn-split-clear-all" style="background: none; border: none; color: var(--primary-color); cursor: pointer; text-decoration: underline; font-size: 0.75rem; font-weight: 600; padding: 0;">Clear All</button>
+            </div>
+          </div>
           <div id="split-members-list" class="split-members-container">
             <!-- Dynamically generated inputs based on members and split mode -->
           </div>
@@ -389,7 +406,10 @@
               <div><strong>Account Number:</strong> <span id="settle-bank-acct">-</span></div>
               <button type="button" id="btn-copy-settle-acct" class="action-btn-sm" style="padding:0.15rem 0.35rem; font-size:0.75rem; border:1px solid var(--surface-border); border-radius:4px;" title="Copy to clipboard">📋 Copy</button>
             </div>
-            <div><strong>Account Name:</strong> <span id="settle-bank-holder">-</span></div>
+            <div style="margin: 0.2rem 0; display: flex; justify-content: space-between; align-items: center;">
+              <div><strong>Account Name:</strong> <span id="settle-bank-holder">-</span></div>
+              <button type="button" id="btn-copy-settle-holder" class="action-btn-sm" style="padding:0.15rem 0.35rem; font-size:0.75rem; border:1px solid var(--surface-border); border-radius:4px;" title="Copy holder name to clipboard">📋 Copy Name</button>
+            </div>
             
             <!-- Settle QR display -->
             <div id="settle-qr-container" style="display: none; flex-direction: column; align-items: center; gap: 0.35rem; margin-top: 0.85rem; border-top: 1px dashed var(--surface-border); padding-top: 0.85rem;">
@@ -424,7 +444,10 @@
             <div><strong>Account Number:</strong> <span id="bank-view-acct" style="font-weight:700; font-size:1.05rem; letter-spacing:0.02em; color: var(--primary-color);">-</span></div>
             <button type="button" id="btn-copy-bank-acct" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">📋 Copy</button>
           </div>
-          <div><strong>Account Holder (Full Name):</strong> <span id="bank-view-holder" style="font-weight:600;">-</span></div>
+          <div style="margin-top: 0.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+            <div><strong>Account Holder (Full Name):</strong> <span id="bank-view-holder" style="font-weight:600;">-</span></div>
+            <button type="button" id="btn-copy-bank-holder" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">📋 Copy Name</button>
+          </div>
         </div>
         
         <!-- QR Code display -->
@@ -461,8 +484,13 @@
         <!-- QR upload -->
         <div class="form-group">
           <label for="bank-input-qr">Payment QR Code (Optional)</label>
-          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Upload a screenshot of your DuitNow QR, TNG QR, or bank QR.</p>
-          <input type="file" id="bank-input-qr" class="form-input" accept="image/*" style="padding: 0.5rem;">
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Upload, drag-and-drop, or paste (Ctrl+V) a screenshot of your DuitNow/Bank QR.</p>
+          <div id="qr-drop-zone" class="qr-drop-zone" style="border: 2px dashed var(--surface-border); border-radius: var(--radius-md); padding: 1.25rem; text-align: center; cursor: pointer; transition: all 0.3s ease; position: relative; background: rgba(255, 255, 255, 0.02);">
+            <div id="qr-drop-zone-text" style="font-size: 0.8rem; color: var(--text-secondary); pointer-events: none;">
+              📁 Click to upload, drag file here, or paste image directly
+            </div>
+            <input type="file" id="bank-input-qr" accept="image/*" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+          </div>
           <!-- Preview in edit form -->
           <div id="bank-edit-qr-preview-container" style="display: none; align-items: center; gap: 1rem; margin-top: 0.5rem;">
             <img id="bank-edit-qr-preview" src="" alt="QR Preview" style="max-width: 80px; max-height: 80px; border-radius: 4px; border: 1px solid var(--surface-border);">
