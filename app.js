@@ -363,11 +363,16 @@ class SataSplitApp {
 
   async triggerStateSave() {
     if (this.activeGroup) {
-      await this.storage.saveGroup(this.activeGroup);
-      
-      // If we are in local mode, the listener doesn't trigger automatically, so we render
-      if (!isFirebaseEnabled) {
-        this.renderDashboard();
+      try {
+        await this.storage.saveGroup(this.activeGroup);
+        if (!isFirebaseEnabled) {
+          this.renderDashboard();
+        }
+      } catch (err) {
+        console.error("Firestore Save Error: ", err);
+        this.showToast("Cloud sync failed! Update Firestore Rules in console.", "error");
+        // Save backing clone in localStorage
+        localStorage.setItem("fairshare_last_active_group_backup", JSON.stringify(this.activeGroup));
       }
     }
   }
@@ -2183,20 +2188,33 @@ class SataSplitApp {
     // 21. Gemini API Key Settings Form & Triggers
     const apiKeyDialog = document.getElementById("api-key-dialog");
     document.getElementById("btn-open-api-settings").addEventListener("click", () => {
-      const savedKey = localStorage.getItem("gemini_api_key") || "";
+      const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
+      const savedKey = cloudKey || localStorage.getItem("gemini_api_key") || "";
       document.getElementById("input-gemini-key").value = savedKey;
       apiKeyDialog.showModal();
     });
 
-    document.getElementById("api-key-form").addEventListener("submit", (e) => {
+    document.getElementById("api-key-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
       const keyVal = document.getElementById("input-gemini-key").value.trim();
       if (keyVal) {
         localStorage.setItem("gemini_api_key", keyVal);
-        this.showToast("Gemini API Key saved securely!", "success");
+        if (this.activeGroup) {
+          this.activeGroup.geminiApiKey = keyVal;
+          await this.triggerStateSave();
+          this.showToast("Gemini API Key saved to Cloud for this group!", "success");
+        } else {
+          this.showToast("Gemini API Key saved locally!", "success");
+        }
       } else {
         localStorage.removeItem("gemini_api_key");
+        if (this.activeGroup) {
+          delete this.activeGroup.geminiApiKey;
+          await this.triggerStateSave();
+        }
         this.showToast("Gemini API Key removed.", "warning");
       }
+      document.getElementById("api-key-dialog").close();
     });
 
     // 22. Real Gemini AI Scan trigger
@@ -2624,7 +2642,8 @@ class SataSplitApp {
   }
 
   async performGeminiScan(file) {
-    const key = localStorage.getItem("gemini_api_key");
+    const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
+    const key = cloudKey || localStorage.getItem("gemini_api_key");
     if (!key) {
       this.showToast("Please save your Gemini API Key in Settings first!", "error");
       document.getElementById("api-key-dialog").showModal();
