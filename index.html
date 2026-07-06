@@ -708,18 +708,31 @@
       
       <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
         
-        <!-- v1.6.0 -->
+        <!-- v1.7.0 -->
         <div class="changelog-version">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.6.0</span>
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.7.0</span>
             <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-06</span>
           </div>
-          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Futuristic Interactions & Notes Wall</h4>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Mobile-First Optimizations & Feature Cleanup</h4>
           <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-            <li><strong>3D Parallax Tilt</strong>: Desktop cards respond with physical 3D perspective shifts to cursor movements.</li>
-            <li><strong>Live Notes notice board</strong>: Real-time synced text area where users can pin notes visible to the whole group instantly.</li>
-            <li><strong>Mock AI OCR Scanner</strong>: Added scanner animations when files are picked, auto-populating fields automatically.</li>
-            <li><strong>Liquid Touch Ripples</strong>: Dynamic coordinates tracking expands visual liquid ripple expanders on mouse clicks.</li>
+            <li><strong>Feature Cleanup</strong>: Completely removed desktop 3D card tilt listeners and simulated receipt scanner mockups to keep layout clean and performant.</li>
+            <li><strong>Compact Spacing</strong>: Adjusted layout margins, container paddings, and heading sizes under 480px to optimize display density.</li>
+            <li><strong>Segmented Tab Controls</strong>: Tightened tab-btn dimensions and font scaling to prevent wraps on narrow phones.</li>
+            <li><strong>Responsive Analytics</strong>: Enforced vertical card stacking on SVG analytics containers and note grids.</li>
+          </ul>
+        </div>
+
+        <!-- v1.6.0 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--text-muted); color: var(--bg-primary); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.6.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-06</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Notice Board & Liquid Taps</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li><strong>Live Notes notice board</strong>: Real-time synced notice wall enabling members to pin persistent reminders.</li>
+            <li><strong>Liquid Touch Ripples</strong>: Spawns glowing fluid expansion rings matching exact click coordinates.</li>
           </ul>
         </div>
 
