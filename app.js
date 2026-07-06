@@ -246,6 +246,8 @@ class SataSplitApp {
     this.currentUser = "Ban";
     this.activeTab = "expenses";
     this.unsubscribeActiveListener = null;
+    this.lastDeletedItem = null;
+    this.settleReceiptDataUrl = "";
     
     this.init();
   }
@@ -687,11 +689,19 @@ class SataSplitApp {
         const dateObj = new Date(set.date);
         const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
+        const hasReceipt = set.receipt && set.receipt.length > 0;
+        const receiptButtonHtml = hasReceipt 
+          ? `<button type="button" class="action-btn-sm btn-view-receipt" style="margin-left: 0.5rem; padding: 0.15rem 0.4rem; font-size: 0.75rem; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 4px; background: rgba(99, 102, 241, 0.05); color: var(--primary-color);" title="View payment receipt">📄 View Receipt</button>` 
+          : "";
+
         card.innerHTML = `
           <div class="expense-info">
             <div class="category-icon" style="background-color: var(--success-light); color: var(--success-color);">💸</div>
             <div class="expense-text">
-              <div class="expense-title"><strong>${set.payer}</strong> settled up with <strong>${set.recipient}</strong></div>
+              <div class="expense-title" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;">
+                <strong>${set.payer}</strong> settled up with <strong>${set.recipient}</strong>
+                ${receiptButtonHtml}
+              </div>
               <div class="expense-meta">${formattedDate}</div>
             </div>
           </div>
@@ -714,8 +724,27 @@ class SataSplitApp {
           }
         });
         
+        if (hasReceipt) {
+          card.querySelector(".btn-view-receipt").addEventListener("click", (e) => {
+            e.stopPropagation();
+            const lightbox = document.getElementById("receipt-lightbox-dialog");
+            const lightboxImg = document.getElementById("receipt-lightbox-img");
+            const lightboxTitle = document.getElementById("receipt-lightbox-title");
+            
+            lightboxImg.src = set.receipt;
+            lightboxTitle.textContent = `${set.payer} ➔ ${set.recipient} (${currency}${parseFloat(set.amount).toFixed(2)})`;
+            
+            lightbox.style.display = "flex";
+            lightbox.showModal();
+          });
+        }
+        
         settlementsHistory.appendChild(card);
       });
+    }
+    const panel = document.getElementById("analytics-panel");
+    if (panel && panel.style.display === "block") {
+      this.renderAnalytics();
     }
     this.renderActivityFeed();
   }
@@ -890,11 +919,15 @@ class SataSplitApp {
   async deleteExpense(id) {
     if (!this.activeGroup) return;
     const exp = this.activeGroup.expenses.find(e => e.id === id);
-    const desc = exp ? exp.description : id;
+    if (!exp) return;
+    
+    this.lastDeletedItem = { type: "expense", data: exp };
+    
     this.activeGroup.expenses = this.activeGroup.expenses.filter(e => e.id !== id);
-    this.logActivity(`deleted expense "${desc}"`, false);
+    this.logActivity(`deleted expense "${exp.description}"`, false);
     await this.triggerStateSave();
-    this.showToast("Expense deleted.", "success");
+    
+    this.showToast(`Deleted expense "${exp.description}"`, "success", "Undo", () => this.restoreLastDeletedItem());
   }
 
   async addSettlement(settlementData) {
@@ -908,11 +941,16 @@ class SataSplitApp {
   async deleteSettlement(id) {
     if (!this.activeGroup) return;
     const set = this.activeGroup.settlements.find(s => s.id === id);
-    const text = set ? `${set.payer} paid ${set.recipient} ${this.activeGroup.currency}${parseFloat(set.amount).toFixed(2)}` : "settlement";
+    if (!set) return;
+    
+    this.lastDeletedItem = { type: "settlement", data: set };
+    
+    const text = `${set.payer} paid ${set.recipient} ${this.activeGroup.currency}${parseFloat(set.amount).toFixed(2)}`;
     this.activeGroup.settlements = this.activeGroup.settlements.filter(s => s.id !== id);
     this.logActivity(`deleted settlement: "${text}"`, false);
     await this.triggerStateSave();
-    this.showToast("Settlement deleted.", "success");
+    
+    this.showToast("Deleted settlement.", "success", "Undo", () => this.restoreLastDeletedItem());
   }
 
   // --- Dialog / Form Management ---
@@ -926,6 +964,9 @@ class SataSplitApp {
     
     // Reset Form
     form.reset();
+    
+    document.getElementById("expense-desc-suggestions").innerHTML = "";
+    document.getElementById("expense-desc-suggestions").style.display = "none";
     
     // Populate fields
     const expIdInput = document.getElementById("expense-id-input");
@@ -1143,6 +1184,12 @@ class SataSplitApp {
     const form = document.getElementById("settle-form");
     
     form.reset();
+
+    // Reset receipt upload state
+    this.settleReceiptDataUrl = "";
+    document.getElementById("settle-input-receipt").value = "";
+    document.getElementById("settle-receipt-preview").src = "";
+    document.getElementById("settle-receipt-preview-container").style.display = "none";
 
     const payerSelect = document.getElementById("settle-payer");
     const recSelect = document.getElementById("settle-recipient");
@@ -1414,21 +1461,46 @@ class SataSplitApp {
 
   // --- Helper notifications ---
 
-  showToast(message, type = "success") {
+  showToast(message, type = "success", actionText = null, actionCallback = null) {
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
     
     const icon = type === "success" ? "✅" : "⚠️";
-    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
     
+    let actionHtml = "";
+    if (actionText && actionCallback) {
+      actionHtml = `<button type="button" class="action-btn-sm" style="margin-left: 0.75rem; background: var(--primary-color); border: none; color: white; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">${actionText}</button>`;
+    }
+    
+    toast.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span>${icon}</span>
+          <span>${message}</span>
+        </div>
+        ${actionHtml}
+      </div>
+    `;
+    
+    if (actionText && actionCallback) {
+      const btn = toast.querySelector("button");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        actionCallback();
+        toast.remove();
+      });
+    }
+
     container.appendChild(toast);
     
-    // Auto dismiss after 3s
+    const duration = actionText ? 5000 : 3000;
     setTimeout(() => {
-      toast.style.animation = "slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
+      if (toast.parentNode) {
+        toast.style.animation = "slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, duration);
   }
 
   updateThemeIcons(isLight) {
@@ -1584,7 +1656,8 @@ class SataSplitApp {
         payer,
         recipient,
         amount,
-        date: new Date().toISOString().substring(0, 10)
+        date: new Date().toISOString().substring(0, 10),
+        receipt: this.settleReceiptDataUrl || ""
       };
 
       this.addSettlement(settlementObj);
@@ -1850,12 +1923,153 @@ class SataSplitApp {
       this.processQrImageFile(file);
     });
 
-    document.getElementById("btn-remove-qr").addEventListener("click", () => {
-      console.log("Removing QR code");
-      this.editingQrDataUrl = "";
-      document.getElementById("bank-input-qr").value = "";
-      document.getElementById("bank-edit-qr-preview").src = "";
-      document.getElementById("bank-edit-qr-preview-container").style.display = "none";
+    // 16. Settle up receipt upload zone drag/drop & paste
+    const receiptDropZone = document.getElementById("settle-receipt-drop-zone");
+    
+    receiptDropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      receiptDropZone.classList.add("dragover");
+    });
+
+    receiptDropZone.addEventListener("dragleave", () => {
+      receiptDropZone.classList.remove("dragover");
+    });
+
+    receiptDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      receiptDropZone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith("image/")) {
+        this.processSettleReceiptFile(file);
+      } else {
+        this.showToast("Only image files are allowed for receipts.", "error");
+      }
+    });
+
+    // Paste event handler for receipt upload
+    document.addEventListener("paste", (e) => {
+      const dialog = document.getElementById("settle-dialog");
+      if (dialog && dialog.open) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+          if (item.kind === "file" && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            this.processSettleReceiptFile(file);
+            this.showToast("Receipt image pasted successfully!", "success");
+            e.preventDefault();
+          }
+        }
+      }
+    });
+
+    document.getElementById("settle-input-receipt").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      this.processSettleReceiptFile(file);
+    });
+
+    document.getElementById("btn-remove-settle-receipt").addEventListener("click", () => {
+      console.log("Removing receipt image");
+      this.settleReceiptDataUrl = "";
+      document.getElementById("settle-input-receipt").value = "";
+      document.getElementById("settle-receipt-preview").src = "";
+      document.getElementById("settle-receipt-preview-container").style.display = "none";
+    });
+
+    // 17. Lightbox triggers
+    document.getElementById("btn-close-lightbox").addEventListener("click", () => {
+      const lightbox = document.getElementById("receipt-lightbox-dialog");
+      lightbox.close();
+      lightbox.style.display = "none";
+    });
+
+    document.getElementById("receipt-lightbox-dialog").addEventListener("click", (e) => {
+      const lightbox = document.getElementById("receipt-lightbox-dialog");
+      if (e.target === lightbox) {
+        lightbox.close();
+        lightbox.style.display = "none";
+      }
+    });
+
+    // 18. Toggle spending charts collapsible panel
+    document.getElementById("btn-toggle-analytics").addEventListener("click", () => {
+      const panel = document.getElementById("analytics-panel");
+      const isVisible = panel.style.display === "block";
+      panel.style.display = isVisible ? "none" : "block";
+      
+      if (!isVisible) {
+        this.renderAnalytics();
+      }
+    });
+
+    // 19. Autocomplete/Suggestions logic
+    const descInput = document.getElementById("expense-desc");
+    const suggestionsContainer = document.getElementById("expense-desc-suggestions");
+
+    const AUTO_CATEGORIES = {
+      meals: ["dinner", "lunch", "breakfast", "mcd", "starbucks", "food", "cafe", "restaurant", "eat", "drink", "beer", "sushi", "kfc", "mamak", "cafe", "coffee", "supper"],
+      transport: ["taxi", "grab", "flight", "petrol", "fuel", "train", "toll", "parking", "car", "ride", "ticket", "petronas", "shell", "toll", "flight", "plane", "airline"],
+      lodging: ["hotel", "airbnb", "stay", "hostel", "resort", "homestay"],
+      groceries: ["grocery", "groceries", "supermarket", "aeon", "jaya", "lotus", "market", "cooking", "tesco"],
+      entertainment: ["movie", "cinema", "netflix", "karaoke", "concert", "game", "ktv", "ticket", "show"],
+      utilities: ["bill", "electricity", "water", "wifi", "internet", "phone", "tnb", "unifi", "maxis", "celcom", "digi"]
+    };
+
+    descInput.addEventListener("input", (e) => {
+      const text = e.target.value.toLowerCase().trim();
+      suggestionsContainer.innerHTML = "";
+      suggestionsContainer.style.display = "none";
+
+      if (text.length < 2) return;
+
+      // 1. Detect Category automatically based on keywords
+      let matchedCategory = null;
+      for (const [cat, keywords] of Object.entries(AUTO_CATEGORIES)) {
+        if (keywords.some(kw => text.includes(kw))) {
+          matchedCategory = cat;
+          break;
+        }
+      }
+
+      if (matchedCategory) {
+        const radio = document.querySelector(`input[name="expense-category"][value="${matchedCategory}"]`);
+        if (radio && !radio.checked) {
+          radio.checked = true;
+        }
+      }
+
+      // 2. Provide Quick Autocomplete suggestion pills
+      const suggestionsList = [
+        { label: "Lunch 🍔", desc: "Lunch", cat: "meals" },
+        { label: "Dinner 🍔", desc: "Dinner", cat: "meals" },
+        { label: "Coffee ☕", desc: "Coffee", cat: "meals" },
+        { label: "Grab 🚗", desc: "Grab Ride", cat: "transport" },
+        { label: "Petrol ⛽", desc: "Petrol", cat: "transport" },
+        { label: "Toll 🚗", desc: "Toll Payment", cat: "transport" },
+        { label: "Airbnb 🏨", desc: "Airbnb stay", cat: "lodging" },
+        { label: "Groceries 🛒", desc: "Groceries", cat: "groceries" },
+        { label: "Cinema 🍿", desc: "Movie tickets", cat: "entertainment" },
+        { label: "Electricity Bill ⚡", desc: "TNB Bill", cat: "utilities" }
+      ];
+
+      const matches = suggestionsList.filter(s => s.label.toLowerCase().includes(text) || s.desc.toLowerCase().includes(text));
+      if (matches.length > 0) {
+        suggestionsContainer.style.display = "flex";
+        matches.slice(0, 3).forEach(match => {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "action-btn-sm";
+          pill.style = "padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 20px; border: 1px solid var(--surface-border); background: rgba(255,255,255,0.03); color: var(--text-secondary); cursor: pointer;";
+          pill.textContent = match.label;
+          pill.addEventListener("click", () => {
+            descInput.value = match.desc;
+            const radio = document.querySelector(`input[name="expense-category"][value="${match.cat}"]`);
+            if (radio) radio.checked = true;
+            suggestionsContainer.innerHTML = "";
+            suggestionsContainer.style.display = "none";
+          });
+          suggestionsContainer.appendChild(pill);
+        });
+      }
     });
 
     // 15. Open Changelog Dialog
@@ -1965,6 +2179,188 @@ class SataSplitApp {
       `;
       container.appendChild(item);
     });
+  }
+
+  processSettleReceiptFile(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      console.log("FileReader loaded receipt URL of length:", event.target.result.length);
+      const img = new Image();
+      img.onload = () => {
+        console.log("Receipt image loaded, dimensions:", img.width, img.height);
+        const canvas = document.createElement("canvas");
+        const maxDim = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        this.settleReceiptDataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        console.log("Compressed receipt URL of length:", this.settleReceiptDataUrl.length);
+        document.getElementById("settle-receipt-preview").src = this.settleReceiptDataUrl;
+        document.getElementById("settle-receipt-preview-container").style.display = "flex";
+      };
+      img.onerror = (err) => {
+        console.error("Receipt load error:", err);
+      };
+      img.src = event.target.result;
+    };
+    reader.onerror = (err) => {
+      console.error("FileReader error:", err);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  renderAnalytics() {
+    const categoriesSum = {};
+    const memberPaidSum = {};
+    
+    this.activeGroup.members.forEach(m => {
+      memberPaidSum[m] = 0;
+    });
+
+    this.activeGroup.expenses.forEach(exp => {
+      const amount = parseFloat(exp.amount) || 0;
+      const cat = exp.category || "other";
+      categoriesSum[cat] = (categoriesSum[cat] || 0) + amount;
+      
+      const payer = exp.paidBy;
+      if (memberPaidSum[payer] !== undefined) {
+        memberPaidSum[payer] += amount;
+      }
+    });
+
+    const totalSpend = Object.values(categoriesSum).reduce((a, b) => a + b, 0);
+    const donutContainer = document.getElementById("chart-donut-container");
+    const legendContainer = document.getElementById("chart-donut-legend");
+    
+    donutContainer.innerHTML = "";
+    legendContainer.innerHTML = "";
+
+    const currency = this.activeGroup.currency;
+
+    if (totalSpend === 0) {
+      donutContainer.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted);">No spending data</span>`;
+      
+      const barsContainer = document.getElementById("chart-bars-container");
+      const barsLabels = document.getElementById("chart-bars-labels");
+      barsContainer.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted); align-self:center;">No spending data</span>`;
+      barsLabels.innerHTML = "";
+      return;
+    }
+
+    const categoryMeta = {
+      meals: { label: "Meals", icon: "🍔", color: "#f59e0b" },
+      transport: { label: "Transport", icon: "🚗", color: "#3b82f6" },
+      lodging: { label: "Lodging", icon: "🏨", color: "#8b5cf6" },
+      groceries: { label: "Groceries", icon: "🛒", color: "#10b981" },
+      entertainment: { label: "Entertainment", icon: "🍿", color: "#ec4899" },
+      utilities: { label: "Utilities", icon: "⚡", color: "#06b6d4" },
+      other: { label: "Other", icon: "📦", color: "#64748b" }
+    };
+
+    let svgHtml = `<svg width="140" height="140" viewBox="0 0 100 100" style="transform: rotate(-90deg);">`;
+    svgHtml += `<circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>`;
+
+    let accumulatedPercent = 0;
+    Object.entries(categoriesSum).forEach(([cat, amount]) => {
+      const pct = (amount / totalSpend) * 100;
+      const meta = categoryMeta[cat] || { label: cat, icon: "📦", color: "#64748b" };
+      
+      const c = 251.32;
+      const strokeDashArray = `${(pct * c / 100).toFixed(2)} ${c.toFixed(2)}`;
+      const strokeDashOffset = `-${(accumulatedPercent * c / 100).toFixed(2)}`;
+      
+      svgHtml += `<circle cx="50" cy="50" r="40" fill="transparent" stroke="${meta.color}" stroke-width="8" stroke-dasharray="${strokeDashArray}" stroke-dashoffset="${strokeDashOffset}" style="transition: stroke-dasharray 0.5s ease;"/>`;
+      accumulatedPercent += pct;
+
+      const leg = document.createElement("div");
+      leg.style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.15rem;";
+      leg.innerHTML = `
+        <div style="display:flex; align-items:center; gap:0.25rem;">
+          <span style="color:${meta.color}; font-size:0.6rem; vertical-align:middle; line-height:1;">●</span>
+          <span>${meta.icon} ${meta.label}</span>
+        </div>
+        <span style="font-weight:600; color:var(--text-primary);">${currency}${amount.toFixed(2)} (${pct.toFixed(0)}%)</span>
+      `;
+      legendContainer.appendChild(leg);
+    });
+
+    svgHtml += `</svg>`;
+    
+    const totalOverlay = document.createElement("div");
+    totalOverlay.style = "position: absolute; display: flex; flex-direction: column; align-items: center; pointer-events: none; text-align: center;";
+    totalOverlay.innerHTML = `
+      <span style="font-size:0.65rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">Total</span>
+      <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${currency}${totalSpend.toFixed(0)}</span>
+    `;
+    
+    donutContainer.innerHTML = svgHtml;
+    donutContainer.appendChild(totalOverlay);
+
+    const barsContainer = document.getElementById("chart-bars-container");
+    const barsLabels = document.getElementById("chart-bars-labels");
+    
+    barsContainer.innerHTML = "";
+    barsLabels.innerHTML = "";
+
+    const maxPaid = Math.max(...Object.values(memberPaidSum), 0);
+
+    Object.entries(memberPaidSum).forEach(([member, paid]) => {
+      const pct = maxPaid > 0 ? (paid / maxPaid) * 100 : 0;
+      
+      const col = document.createElement("div");
+      col.style = "display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; width: 24px; position: relative;";
+      
+      const bar = document.createElement("div");
+      bar.style = `height: ${pct.toFixed(0)}%; width: 14px; background: var(--primary-color); border-radius: 4px; transition: height 0.5s ease; cursor: pointer;`;
+      bar.title = `${member} paid ${currency}${paid.toFixed(2)}`;
+      
+      col.appendChild(bar);
+      barsContainer.appendChild(col);
+
+      const label = document.createElement("div");
+      label.style = "width: 24px; text-align: center; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;";
+      label.textContent = member.substring(0, 3);
+      label.title = member;
+      barsLabels.appendChild(label);
+    });
+  }
+
+  async restoreLastDeletedItem() {
+    if (!this.activeGroup || !this.lastDeletedItem) return;
+    
+    const { type, data } = this.lastDeletedItem;
+    if (type === "expense") {
+      this.activeGroup.expenses.push(data);
+      this.logActivity(`restored expense "${data.description}"`, false);
+      await this.triggerStateSave();
+      this.showToast(`Restored expense "${data.description}"`, "success");
+    } else if (type === "settlement") {
+      this.activeGroup.settlements.push(data);
+      this.logActivity(`restored settlement: paid ${data.recipient} ${this.activeGroup.currency}${parseFloat(data.amount).toFixed(2)}`, false);
+      await this.triggerStateSave();
+      this.showToast(`Restored settlement`, "success");
+    }
+    
+    this.lastDeletedItem = null;
   }
 
   checkIosInstallPrompt() {

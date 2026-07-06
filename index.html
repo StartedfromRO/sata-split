@@ -131,6 +131,12 @@
               </select>
             </div>
             
+            <!-- Charts Toggle Button -->
+            <button id="btn-toggle-analytics" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; padding: 0.65rem 0.85rem;" type="button">
+              <span>📊</span>
+              <span>Charts</span>
+            </button>
+            
             <!-- Add Expense Button -->
             <button id="btn-open-expense-dialog" class="btn btn-primary">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 0.25rem;">
@@ -138,6 +144,36 @@
               </svg>
               Add Expense
             </button>
+          </div>
+          
+          <!-- Analytics Collapsible Panel -->
+          <div id="analytics-panel" class="glass-panel" style="display: none; margin-bottom: 1.5rem; padding: 1.25rem; border-color: rgba(99, 102, 241, 0.15); animation: fadeIn 0.3s ease;">
+            <h3 style="margin-bottom: 1rem; font-size: 1rem; color: var(--primary-color); display: flex; align-items: center; gap: 0.5rem; margin-top: 0;">📊 Group Spending Charts</h3>
+            <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; align-items: center;">
+              
+              <!-- Left Chart: Category Donut -->
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.01); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Spending by Category</span>
+                <div id="chart-donut-container" style="position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;">
+                  <!-- Dynamic SVG Donut renders here -->
+                </div>
+                <div id="chart-donut-legend" style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; max-height: 80px; overflow-y: auto; font-size: 0.75rem; padding-right: 0.25rem;">
+                  <!-- Legend items render here -->
+                </div>
+              </div>
+
+              <!-- Right Chart: Member Spending Bar -->
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.01); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); width: 100%; box-sizing: border-box;">
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Paid per Member</span>
+                <div id="chart-bars-container" style="width: 100%; height: 140px; display: flex; align-items: flex-end; gap: 0.75rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 0.25rem; justify-content: center;">
+                  <!-- Dynamic bar columns render here -->
+                </div>
+                <div id="chart-bars-labels" style="width: 100%; display: flex; justify-content: center; gap: 0.75rem; font-size: 0.7rem; color: var(--text-muted); text-align: center;">
+                  <!-- Member name labels render here -->
+                </div>
+              </div>
+
+            </div>
           </div>
           
           <!-- Expenses List Container -->
@@ -244,9 +280,12 @@
         <input type="hidden" id="expense-id-input">
         
         <!-- Description -->
-        <div class="form-group">
+        <div class="form-group" style="position: relative;">
           <label for="expense-desc">Description</label>
           <input type="text" id="expense-desc" class="form-input" placeholder="e.g. Flight Tickets, Thai Dinner" required autocomplete="off">
+          <div id="expense-desc-suggestions" style="display: none; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;">
+            <!-- Autocomplete suggestion pills render here -->
+          </div>
         </div>
         
         <div class="form-row">
@@ -416,6 +455,23 @@
               <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Scan QR to Transfer</span>
               <img id="settle-qr-img" src="" alt="Payment QR Code" style="max-width: 140px; max-height: 140px; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); background: white; padding: 0.35rem;">
             </div>
+          </div>
+        </div>
+
+        <!-- Receipt Upload (Optional) -->
+        <div class="form-group" style="margin-top: 1rem;">
+          <label>Proof of Payment (Optional Receipt)</label>
+          <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Upload, drag-and-drop, or paste (Ctrl+V) a payment receipt image.</p>
+          <div id="settle-receipt-drop-zone" class="qr-drop-zone" style="border: 2px dashed var(--surface-border); border-radius: var(--radius-md); padding: 1rem; text-align: center; cursor: pointer; transition: all 0.3s ease; position: relative; background: rgba(255, 255, 255, 0.02);">
+            <div id="settle-receipt-drop-zone-text" style="font-size: 0.8rem; color: var(--text-secondary); pointer-events: none;">
+              📄 Click to upload receipt, drag here, or paste screenshot
+            </div>
+            <input type="file" id="settle-input-receipt" accept="image/*" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+          </div>
+          <!-- Preview -->
+          <div id="settle-receipt-preview-container" style="display: none; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+            <img id="settle-receipt-preview" src="" alt="Receipt Preview" style="max-width: 60px; max-height: 60px; border-radius: 4px; border: 1px solid var(--surface-border);">
+            <button type="button" id="btn-remove-settle-receipt" class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">Remove Image</button>
           </div>
         </div>
 
@@ -709,6 +765,15 @@
       <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--surface-border); padding-top: 1rem;">
         <button type="button" class="btn btn-primary" onclick="document.getElementById('changelog-dialog').close()">Got it!</button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- DIALOG: Receipt Lightbox Dialog -->
+  <dialog id="receipt-lightbox-dialog" style="border: none; background: rgba(0,0,0,0.85); width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: none; align-items: center; justify-content: center; z-index: 10000; padding: 0;">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+      <button type="button" id="btn-close-lightbox" style="position: absolute; top: 1.5rem; right: 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 44px; height: 44px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+      <img id="receipt-lightbox-img" src="" alt="Full Receipt" style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); object-fit: contain;">
+      <div style="margin-top: 1rem; color: white; font-size: 0.9rem; font-weight: 600;" id="receipt-lightbox-title">Receipt Proof</div>
     </div>
   </dialog>
 
