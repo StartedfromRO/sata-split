@@ -1436,3 +1436,21 @@ body.light-theme .expense-card {
     gap: 1rem !important;
   }
 }
+
+/* AI OCR Receipt Scanner Laser */
+.scanner-laser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0), var(--primary-color), rgba(0, 229, 255, 0));
+  box-shadow: 0 0 15px var(--primary-color), 0 0 30px var(--primary-color);
+  animation: laser-scroll 2s infinite ease-in-out;
+  z-index: 101;
+}
+
+@keyframes laser-scroll {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}

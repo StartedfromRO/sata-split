@@ -1237,6 +1237,11 @@ class SataSplitApp {
         if (det.qrCode) {
           document.getElementById("settle-qr-img").src = det.qrCode;
           qrPanel.style.display = "flex";
+        } else if (det.duitnowId) {
+          const settleAmount = amountInput.value || "0.00";
+          const qrData = this.generateDuitNowEMVCo(det.duitnowType, det.duitnowId, det.fullName, settleAmount, this.activeGroup.currency);
+          document.getElementById("settle-qr-img").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(qrData);
+          qrPanel.style.display = "flex";
         } else {
           qrPanel.style.display = "none";
         }
@@ -1323,6 +1328,16 @@ class SataSplitApp {
       viewHolder.textContent = details.fullName;
       document.getElementById("btn-copy-bank-acct").style.display = "inline-flex";
       
+      if (details.duitnowId) {
+        document.getElementById("bank-view-duitnow").textContent = details.duitnowId;
+        document.getElementById("bank-view-duitnow-type").textContent = `(${details.duitnowType})`;
+        document.getElementById("btn-copy-bank-duitnow").style.display = "inline-flex";
+      } else {
+        document.getElementById("bank-view-duitnow").textContent = "—";
+        document.getElementById("bank-view-duitnow-type").textContent = "";
+        document.getElementById("btn-copy-bank-duitnow").style.display = "none";
+      }
+      
       if (details.qrCode) {
         viewQrImg.src = details.qrCode;
         viewQrContainer.style.display = "flex";
@@ -1333,7 +1348,10 @@ class SataSplitApp {
       viewName.textContent = "(Not set)";
       viewAcct.textContent = "—";
       viewHolder.textContent = "(Not set)";
+      document.getElementById("bank-view-duitnow").textContent = "—";
+      document.getElementById("bank-view-duitnow-type").textContent = "";
       document.getElementById("btn-copy-bank-acct").style.display = "none";
+      document.getElementById("btn-copy-bank-duitnow").style.display = "none";
       viewQrContainer.style.display = "none";
     }
     
@@ -1344,6 +1362,8 @@ class SataSplitApp {
     document.getElementById("bank-input-name").value = details ? details.bankName : "";
     document.getElementById("bank-input-acct").value = details ? details.accountNumber : "";
     document.getElementById("bank-input-holder").value = details ? details.fullName : (member === "Ban" ? "Ban Lim" : member);
+    document.getElementById("bank-input-duitnow").value = (details && details.duitnowId) ? details.duitnowId : "";
+    document.getElementById("bank-input-duitnow-type").value = (details && details.duitnowType) ? details.duitnowType : "phone";
     
     // QR Code Edit Mode Setup
     document.getElementById("bank-input-qr").value = "";
@@ -1806,9 +1826,18 @@ class SataSplitApp {
       const bankName = document.getElementById("bank-input-name").value.trim();
       const accountNumber = document.getElementById("bank-input-acct").value.trim();
       const fullName = document.getElementById("bank-input-holder").value.trim();
+      const duitnowId = document.getElementById("bank-input-duitnow").value.trim();
+      const duitnowType = document.getElementById("bank-input-duitnow-type").value;
       
       this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
-      this.activeGroup.bankDetails[member] = { bankName, accountNumber, fullName, qrCode: this.editingQrDataUrl || "" };
+      this.activeGroup.bankDetails[member] = { 
+        bankName, 
+        accountNumber, 
+        fullName, 
+        qrCode: this.editingQrDataUrl || "",
+        duitnowId,
+        duitnowType
+      };
       this.logActivity(`updated bank account details for ${member}`, false);
       
       try {
@@ -1833,13 +1862,22 @@ class SataSplitApp {
 
     document.getElementById("btn-copy-bank-holder").addEventListener("click", () => {
       const name = document.getElementById("bank-view-holder").textContent;
-      if (name && name !== "—") {
+      if (name && name !== "-") {
         navigator.clipboard.writeText(name)
-          .then(() => this.showToast("Account name copied!", "success"))
-          .catch(() => this.showToast("Failed to copy name.", "error"));
+          .then(() => this.showToast("Account holder name copied!", "success"))
+          .catch(() => this.showToast("Failed to copy.", "error"));
       }
     });
-    
+
+    document.getElementById("btn-copy-bank-duitnow").addEventListener("click", () => {
+      const id = document.getElementById("bank-view-duitnow").textContent;
+      if (id && id !== "—") {
+        navigator.clipboard.writeText(id)
+          .then(() => this.showToast("DuitNow ID copied!", "success"))
+          .catch(() => this.showToast("Failed to copy.", "error"));
+      }
+    });
+
     document.getElementById("btn-copy-settle-acct").addEventListener("click", () => {
       const acct = document.getElementById("settle-bank-acct").textContent;
       if (acct && acct !== "-") {
@@ -2140,6 +2178,57 @@ class SataSplitApp {
     // 15. Open Changelog Dialog
     document.getElementById("btn-open-changelog").addEventListener("click", () => {
       document.getElementById("changelog-dialog").showModal();
+    });
+
+    // 21. Gemini API Key Settings Form & Triggers
+    const apiKeyDialog = document.getElementById("api-key-dialog");
+    document.getElementById("btn-open-api-settings").addEventListener("click", () => {
+      const savedKey = localStorage.getItem("gemini_api_key") || "";
+      document.getElementById("input-gemini-key").value = savedKey;
+      apiKeyDialog.showModal();
+    });
+
+    document.getElementById("api-key-form").addEventListener("submit", (e) => {
+      const keyVal = document.getElementById("input-gemini-key").value.trim();
+      if (keyVal) {
+        localStorage.setItem("gemini_api_key", keyVal);
+        this.showToast("Gemini API Key saved securely!", "success");
+      } else {
+        localStorage.removeItem("gemini_api_key");
+        this.showToast("Gemini API Key removed.", "warning");
+      }
+    });
+
+    // 22. Real Gemini AI Scan trigger
+    const scanBtn = document.getElementById("btn-scan-receipt-ai");
+    const scanFileInput = document.getElementById("scan-receipt-file-input");
+    
+    scanBtn.addEventListener("click", () => {
+      scanFileInput.click();
+    });
+    
+    scanFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this.performGeminiScan(file);
+      }
+    });
+
+    // 23. Settle Amount dynamic DuitNow QR Code listener
+    document.getElementById("settle-amount").addEventListener("input", () => {
+      const dialog = document.getElementById("settle-dialog");
+      if (dialog && dialog.open) {
+        const rec = document.getElementById("settle-recipient").value;
+        const qrPanel = document.getElementById("settle-qr-container");
+        this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
+        const det = this.activeGroup.bankDetails[rec];
+        if (det && det.accountNumber && !det.qrCode && det.duitnowId) {
+          const settleAmount = document.getElementById("settle-amount").value || "0.00";
+          const qrData = this.generateDuitNowEMVCo(det.duitnowType, det.duitnowId, det.fullName, settleAmount, this.activeGroup.currency);
+          document.getElementById("settle-qr-img").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(qrData);
+          qrPanel.style.display = "flex";
+        }
+      }
     });
   }
 
@@ -2532,6 +2621,133 @@ class SataSplitApp {
       
       container.appendChild(card);
     });
+  }
+
+  async performGeminiScan(file) {
+    const key = localStorage.getItem("gemini_api_key");
+    if (!key) {
+      this.showToast("Please save your Gemini API Key in Settings first!", "error");
+      document.getElementById("api-key-dialog").showModal();
+      return;
+    }
+
+    const scannerOverlay = document.getElementById("scanner-overlay");
+    const scannerStatus = document.getElementById("scanner-status");
+    
+    scannerOverlay.style.display = "flex";
+    scannerStatus.textContent = "AI Scanning Receipt...";
+
+    try {
+      const getBase64 = (f) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(f);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+      });
+
+      const base64Data = await getBase64(file);
+      
+      scannerStatus.textContent = "Analyzing with Gemini AI...";
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: file.type,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: "Analyze this receipt. Return ONLY a valid JSON object matching this schema: { \"description\": \"Short descriptor string e.g. Starbucks Coffee\", \"amount\": number e.g. 24.50, \"category\": \"meals\"|\"transport\"|\"lodging\"|\"groceries\"|\"entertainment\"|\"utilities\"|\"other\", \"date\": \"YYYY-MM-DD\" }. Do not wrap in markdown or backticks."
+                }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const data = await response.json();
+      let resultText = data.candidates[0].content.parts[0].text.trim();
+      
+      if (resultText.startsWith("```")) {
+        resultText = resultText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+      }
+
+      const result = JSON.parse(resultText);
+
+      if (result.description) document.getElementById("expense-desc").value = result.description;
+      if (result.amount) document.getElementById("expense-amount").value = parseFloat(result.amount).toFixed(2);
+      if (result.date) document.getElementById("expense-date").value = result.date;
+      
+      if (result.category) {
+        const radio = document.querySelector(`input[name="expense-category"][value="${result.category}"]`);
+        if (radio) radio.checked = true;
+      }
+
+      document.getElementById("expense-desc").dispatchEvent(new Event("input"));
+      
+      this.showToast(`OCR Scan complete: Extracted "${result.description}" for ${this.activeGroup.currency}${result.amount}!`, "success");
+
+    } catch (err) {
+      console.error(err);
+      this.showToast("Gemini scan failed: " + err.message, "error");
+    } finally {
+      scannerOverlay.style.display = "none";
+      document.getElementById("scan-receipt-file-input").value = "";
+    }
+  }
+
+  generateDuitNowEMVCo(type, id, name, amount, currency) {
+    const f = (tag, val) => tag + String(val.length).padStart(2, '0') + val;
+    
+    let typeVal = "01";
+    if (type === "nric") typeVal = "02";
+    if (type === "bank") typeVal = "05";
+    
+    let normalizedId = id;
+    if (type === "phone") {
+      if (normalizedId.startsWith("0")) {
+        normalizedId = "6" + normalizedId;
+      } else if (!normalizedId.startsWith("60") && !normalizedId.startsWith("+")) {
+        normalizedId = "60" + normalizedId;
+      }
+      normalizedId = normalizedId.replace("+", "");
+    }
+    
+    const merchantInfo = f("00", "MY.DUITNOW.P2P") + 
+                         f("01", typeVal) + 
+                         f("02", normalizedId);
+                         
+    let payload = f("00", "01") + 
+                  f("01", amount ? "12" : "11") +
+                  f("26", merchantInfo) + 
+                  f("52", "0000") + 
+                  f("53", currency === "SGD" ? "702" : "458") + 
+                  (amount ? f("54", parseFloat(amount).toFixed(2)) : "") + 
+                  f("58", "MY") + 
+                  f("59", name.substring(0, 25)) + 
+                  f("60", "Kuala Lumpur");
+                  
+    payload += "6304";
+    let crc = 0xFFFF;
+    for (let i = 0; i < payload.length; i++) {
+      let x = ((crc >> 8) ^ payload.charCodeAt(i)) & 0xFF;
+      x ^= x >> 4;
+      crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ (x << 0)) & 0xFFFF;
+    }
+    const crcString = crc.toString(16).toUpperCase().padStart(4, '0');
+    return payload + crcString;
   }
 }
 
