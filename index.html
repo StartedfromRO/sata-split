@@ -304,14 +304,7 @@
         
         <!-- Description -->
         <div class="form-group" style="position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-            <label for="expense-desc" style="margin-bottom: 0;">Description</label>
-            <button type="button" id="btn-scan-receipt-ai" style="background: var(--primary-light); border: 1px solid rgba(0, 229, 255, 0.25); color: var(--primary-color); cursor: pointer; border-radius: 20px; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; display: flex; align-items: center; gap: 0.25rem; transition: all 0.2s;" title="Simulate AI OCR scan of a receipt image">
-              <span>📷</span> <span>Scan Receipt (AI)</span>
-            </button>
-            <!-- Invisible input for file choosing -->
-            <input type="file" id="scan-receipt-file-input" accept="image/*" style="display: none;">
-          </div>
+          <label for="expense-desc">Description</label>
           <input type="text" id="expense-desc" class="form-input" placeholder="e.g. Flight Tickets, Thai Dinner" required autocomplete="off">
           <div id="expense-desc-suggestions" style="display: none; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;">
             <!-- Autocomplete suggestion pills render here -->
@@ -428,13 +421,6 @@
           <button type="submit" id="btn-save-expense" class="btn btn-primary">Save Expense</button>
         </div>
       </form>
-      
-      <!-- Scanner laser overlay -->
-      <div id="scanner-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-lg); gap: 1rem; backdrop-filter: var(--glass-blur);">
-        <div class="scanner-laser"></div>
-        <div style="font-size: 2.2rem; animation: pulse 1s infinite alternate; line-height: 1;">📷</div>
-        <div style="font-size: 0.9rem; color: var(--primary-color); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">AI Scanning Receipt...</div>
-      </div>
     </div>
   </dialog>
 

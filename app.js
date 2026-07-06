@@ -304,7 +304,6 @@ class SataSplitApp {
     this.switchGroup(groupToLoad);
     this.setupEventListeners();
     this.checkIosInstallPrompt();
-    this.initTiltEffect();
   }
 
   // --- Real-time state syncing ---
@@ -1560,7 +1559,6 @@ class SataSplitApp {
       contentActivity.classList.remove("active");
       contentNotes.classList.remove("active");
       this.activeTab = "expenses";
-      if (this.applyTilt) this.applyTilt();
     });
 
     tabBalances.addEventListener("click", () => {
@@ -1573,7 +1571,6 @@ class SataSplitApp {
       contentActivity.classList.remove("active");
       contentNotes.classList.remove("active");
       this.activeTab = "balances";
-      if (this.applyTilt) this.applyTilt();
     });
 
     tabActivity.addEventListener("click", () => {
@@ -2113,50 +2110,6 @@ class SataSplitApp {
       }
     });
 
-    // 21. Mock AI Scanner file picker triggers
-    const scanBtn = document.getElementById("btn-scan-receipt-ai");
-    const scanFileInput = document.getElementById("scan-receipt-file-input");
-    const scannerOverlay = document.getElementById("scanner-overlay");
-    
-    scanBtn.addEventListener("click", () => {
-      scanFileInput.click();
-    });
-    
-    scanFileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      scannerOverlay.style.display = "flex";
-      
-      setTimeout(() => {
-        scannerOverlay.style.display = "none";
-        scanFileInput.value = "";
-        
-        const mockExpenses = [
-          { desc: "Sushi King Feast 🍣", amount: "128.50", cat: "meals" },
-          { desc: "TGV Cinema Imax 🍿", amount: "64.00", cat: "entertainment" },
-          { desc: "Grab Car to Airport 🚗", amount: "75.00", cat: "transport" },
-          { desc: "Jaya Grocer Purchases 🛒", amount: "142.15", cat: "groceries" },
-          { desc: "Electricity Bill (TNB) ⚡", amount: "185.30", cat: "utilities" },
-          { desc: "Airbnb Beach Chalet 🏨", amount: "450.00", cat: "lodging" }
-        ];
-        
-        const selectedMock = mockExpenses[Math.floor(Math.random() * mockExpenses.length)];
-        
-        document.getElementById("expense-desc").value = selectedMock.desc;
-        document.getElementById("expense-amount").value = selectedMock.amount;
-        
-        const radio = document.querySelector(`input[name="expense-category"][value="${selectedMock.cat}"]`);
-        if (radio) {
-          radio.checked = true;
-        }
-        
-        document.getElementById("expense-desc").dispatchEvent(new Event("input"));
-        
-        this.showToast(`AI Receipt Scanner: Extracted "${selectedMock.desc}" for ${this.activeGroup.currency}${selectedMock.amount}!`, "success");
-      }, 2500);
-    });
-
     // 22. Liquid Water-Ripple coordinates tap listener
     document.addEventListener("click", (e) => {
       // Avoid ripples on inputs or standard text selects to prevent interface bugs
@@ -2503,45 +2456,6 @@ class SataSplitApp {
     }
   }
 
-  initTiltEffect() {
-    const applyTilt = () => {
-      const cards = document.querySelectorAll(".glass-panel, .expense-card, .dialog-card");
-      
-      cards.forEach(card => {
-        if (card.dataset.tiltBound) return;
-        card.dataset.tiltBound = "true";
-
-        card.addEventListener("mousemove", (e) => {
-          if (window.innerWidth < 768) {
-            card.style.transform = "";
-            return;
-          }
-
-          const rect = card.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          
-          const centerX = rect.width / 2;
-          const centerY = rect.height / 2;
-          
-          const rotateX = ((centerY - y) / centerY) * 8;
-          const rotateY = ((x - centerX) / centerX) * 8;
-          
-          card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.01, 1.01, 1.01)`;
-          card.style.transition = "transform 0.05s ease";
-        });
-
-        card.addEventListener("mouseleave", () => {
-          card.style.transform = "";
-          card.style.transition = "transform 0.5s ease";
-        });
-      });
-    };
-
-    applyTilt();
-    this.applyTilt = applyTilt;
-  }
-
   async addNote(text) {
     if (!this.activeGroup || !text) return;
     this.activeGroup.notes = this.activeGroup.notes || [];
@@ -2618,8 +2532,6 @@ class SataSplitApp {
       
       container.appendChild(card);
     });
-    
-    if (this.applyTilt) this.applyTilt();
   }
 }
 

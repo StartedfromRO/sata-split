@@ -1364,3 +1364,75 @@ body.light-theme .expense-card {
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
+
+/* Specular liquid click ripples */
+.liquid-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-grow 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, rgba(125, 82, 255, 0.1) 50%, rgba(255, 255, 255, 0) 70%);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+  z-index: 99999;
+}
+
+@keyframes ripple-grow {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Mobile spacing & layout optimizations (< 480px) */
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0.65rem !important;
+    gap: 0.85rem !important;
+  }
+  
+  .glass-panel {
+    padding: 1rem !important;
+  }
+  
+  header {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+  
+  .logo-text {
+    font-size: 1.25rem !important;
+  }
+  
+  .tab-btn {
+    padding: 0.45rem 0.25rem !important;
+    font-size: 0.72rem !important;
+    border-radius: 6px !important;
+  }
+  
+  .tabs-header {
+    gap: 1px !important;
+    padding: 1px !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  #notes-list {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  #notes-form {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  
+  #notes-form button {
+    width: 100% !important;
+  }
+  
+  .analytics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+}
