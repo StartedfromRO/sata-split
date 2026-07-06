@@ -304,6 +304,7 @@ class SataSplitApp {
     this.switchGroup(groupToLoad);
     this.setupEventListeners();
     this.checkIosInstallPrompt();
+    this.initTiltEffect();
   }
 
   // --- Real-time state syncing ---
@@ -745,6 +746,9 @@ class SataSplitApp {
     const panel = document.getElementById("analytics-panel");
     if (panel && panel.style.display === "block") {
       this.renderAnalytics();
+    }
+    if (this.activeTab === "notes") {
+      this.renderNotesWall();
     }
     this.renderActivityFeed();
   }
@@ -1540,36 +1544,62 @@ class SataSplitApp {
     const tabExpenses = document.getElementById("tab-btn-expenses");
     const tabBalances = document.getElementById("tab-btn-balances");
     const tabActivity = document.getElementById("tab-btn-activity");
+    const tabNotes = document.getElementById("tab-btn-notes");
     const contentExpenses = document.getElementById("tab-content-expenses");
     const contentBalances = document.getElementById("tab-content-balances");
     const contentActivity = document.getElementById("tab-content-activity");
+    const contentNotes = document.getElementById("tab-content-notes");
 
     tabExpenses.addEventListener("click", () => {
       tabExpenses.classList.add("active");
       tabBalances.classList.remove("active");
       tabActivity.classList.remove("active");
+      tabNotes.classList.remove("active");
       contentExpenses.classList.add("active");
       contentBalances.classList.remove("active");
       contentActivity.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "expenses";
+      if (this.applyTilt) this.applyTilt();
     });
 
     tabBalances.addEventListener("click", () => {
       tabBalances.classList.add("active");
       tabExpenses.classList.remove("active");
       tabActivity.classList.remove("active");
+      tabNotes.classList.remove("active");
       contentBalances.classList.add("active");
       contentExpenses.classList.remove("active");
       contentActivity.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "balances";
+      if (this.applyTilt) this.applyTilt();
     });
 
     tabActivity.addEventListener("click", () => {
       tabActivity.classList.add("active");
       tabExpenses.classList.remove("active");
       tabBalances.classList.remove("active");
+      tabNotes.classList.remove("active");
       contentActivity.classList.add("active");
       contentExpenses.classList.remove("active");
       contentBalances.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "activity";
       this.renderActivityFeed();
+    });
+
+    tabNotes.addEventListener("click", () => {
+      tabNotes.classList.add("active");
+      tabExpenses.classList.remove("active");
+      tabBalances.classList.remove("active");
+      tabActivity.classList.remove("active");
+      contentNotes.classList.add("active");
+      contentExpenses.classList.remove("active");
+      contentBalances.classList.remove("active");
+      contentActivity.classList.remove("active");
+      this.activeTab = "notes";
+      this.renderNotesWall();
     });
 
     // 5. Search and Filters
@@ -2072,6 +2102,88 @@ class SataSplitApp {
       }
     });
 
+    // 20. Real-time Notes Wall Submissions
+    document.getElementById("notes-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("note-input");
+      const val = input.value.trim();
+      if (val) {
+        this.addNote(val);
+        input.value = "";
+      }
+    });
+
+    // 21. Mock AI Scanner file picker triggers
+    const scanBtn = document.getElementById("btn-scan-receipt-ai");
+    const scanFileInput = document.getElementById("scan-receipt-file-input");
+    const scannerOverlay = document.getElementById("scanner-overlay");
+    
+    scanBtn.addEventListener("click", () => {
+      scanFileInput.click();
+    });
+    
+    scanFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      scannerOverlay.style.display = "flex";
+      
+      setTimeout(() => {
+        scannerOverlay.style.display = "none";
+        scanFileInput.value = "";
+        
+        const mockExpenses = [
+          { desc: "Sushi King Feast 🍣", amount: "128.50", cat: "meals" },
+          { desc: "TGV Cinema Imax 🍿", amount: "64.00", cat: "entertainment" },
+          { desc: "Grab Car to Airport 🚗", amount: "75.00", cat: "transport" },
+          { desc: "Jaya Grocer Purchases 🛒", amount: "142.15", cat: "groceries" },
+          { desc: "Electricity Bill (TNB) ⚡", amount: "185.30", cat: "utilities" },
+          { desc: "Airbnb Beach Chalet 🏨", amount: "450.00", cat: "lodging" }
+        ];
+        
+        const selectedMock = mockExpenses[Math.floor(Math.random() * mockExpenses.length)];
+        
+        document.getElementById("expense-desc").value = selectedMock.desc;
+        document.getElementById("expense-amount").value = selectedMock.amount;
+        
+        const radio = document.querySelector(`input[name="expense-category"][value="${selectedMock.cat}"]`);
+        if (radio) {
+          radio.checked = true;
+        }
+        
+        document.getElementById("expense-desc").dispatchEvent(new Event("input"));
+        
+        this.showToast(`AI Receipt Scanner: Extracted "${selectedMock.desc}" for ${this.activeGroup.currency}${selectedMock.amount}!`, "success");
+      }, 2500);
+    });
+
+    // 22. Liquid Water-Ripple coordinates tap listener
+    document.addEventListener("click", (e) => {
+      // Avoid ripples on inputs or standard text selects to prevent interface bugs
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      const ripple = document.createElement("span");
+      ripple.className = "liquid-ripple";
+      
+      const size = 80;
+      ripple.style.width = size + "px";
+      ripple.style.height = size + "px";
+      
+      const scrollX = window.scrollX || window.pageXOffset;
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      ripple.style.left = (e.clientX + scrollX - size/2) + "px";
+      ripple.style.top = (e.clientY + scrollY - size/2) + "px";
+      
+      document.body.appendChild(ripple);
+      
+      setTimeout(() => {
+        ripple.remove();
+      }, 600);
+    });
+
     // 15. Open Changelog Dialog
     document.getElementById("btn-open-changelog").addEventListener("click", () => {
       document.getElementById("changelog-dialog").showModal();
@@ -2389,6 +2501,125 @@ class SataSplitApp {
         }
       }
     }
+  }
+
+  initTiltEffect() {
+    const applyTilt = () => {
+      const cards = document.querySelectorAll(".glass-panel, .expense-card, .dialog-card");
+      
+      cards.forEach(card => {
+        if (card.dataset.tiltBound) return;
+        card.dataset.tiltBound = "true";
+
+        card.addEventListener("mousemove", (e) => {
+          if (window.innerWidth < 768) {
+            card.style.transform = "";
+            return;
+          }
+
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          
+          const rotateX = ((centerY - y) / centerY) * 8;
+          const rotateY = ((x - centerX) / centerX) * 8;
+          
+          card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.01, 1.01, 1.01)`;
+          card.style.transition = "transform 0.05s ease";
+        });
+
+        card.addEventListener("mouseleave", () => {
+          card.style.transform = "";
+          card.style.transition = "transform 0.5s ease";
+        });
+      });
+    };
+
+    applyTilt();
+    this.applyTilt = applyTilt;
+  }
+
+  async addNote(text) {
+    if (!this.activeGroup || !text) return;
+    this.activeGroup.notes = this.activeGroup.notes || [];
+    
+    if (this.activeGroup.notes.length >= 30) {
+      this.activeGroup.notes.shift();
+    }
+    
+    const noteObj = {
+      id: "note_" + Math.random().toString(36).substring(2, 11),
+      author: this.currentUser || "System",
+      text: text.trim(),
+      timestamp: Date.now()
+    };
+    
+    this.activeGroup.notes.push(noteObj);
+    this.logActivity(`pinned a note: "${text.substring(0, 30)}..."`, false);
+    await this.triggerStateSave();
+    this.showToast("Note pinned to board!", "success");
+    this.renderNotesWall();
+  }
+
+  async deleteNote(noteId) {
+    if (!this.activeGroup) return;
+    this.activeGroup.notes = this.activeGroup.notes || [];
+    const note = this.activeGroup.notes.find(n => n.id === noteId);
+    this.activeGroup.notes = this.activeGroup.notes.filter(n => n.id !== noteId);
+    this.logActivity(`removed note: "${note ? note.text.substring(0, 30) : noteId}..."`, false);
+    await this.triggerStateSave();
+    this.showToast("Note deleted from board.", "success");
+    this.renderNotesWall();
+  }
+
+  renderNotesWall() {
+    const container = document.getElementById("notes-list");
+    if (!container) return;
+    container.innerHTML = "";
+    
+    const notes = this.activeGroup.notes || [];
+    if (notes.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 2rem 1rem; color: var(--text-muted);">
+          <span style="font-size: 2rem;">📌</span>
+          <p>No notes pinned yet on this board. Type below to pin one!</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const sorted = [...notes].sort((a, b) => b.timestamp - a.timestamp);
+    
+    sorted.forEach(note => {
+      const card = document.createElement("div");
+      card.className = "glass-panel animate-fade-in";
+      card.style = "padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; border-color: rgba(99, 102, 241, 0.15); position: relative; border-radius: var(--radius-md); box-sizing: border-box;";
+      
+      const date = new Date(note.timestamp);
+      const timeStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      
+      card.innerHTML = `
+        <button type="button" class="btn-delete-note" style="position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted); padding: 0.2rem; line-height: 1;">&times;</button>
+        <div style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.4; word-break: break-word;">${note.text}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-muted); margin-top: auto; border-top: 1px solid var(--surface-border); padding-top: 0.5rem;">
+          <span style="font-weight: 700; color: var(--primary-color);">${note.author}</span>
+          <span>${timeStr}</span>
+        </div>
+      `;
+      
+      card.querySelector(".btn-delete-note").addEventListener("click", () => {
+        if (confirm("Delete this pinned note?")) {
+          this.deleteNote(note.id);
+        }
+      });
+      
+      container.appendChild(card);
+    });
+    
+    if (this.applyTilt) this.applyTilt();
   }
 }
 
