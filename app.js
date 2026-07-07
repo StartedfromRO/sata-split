@@ -250,6 +250,7 @@ class SataSplitApp {
     this.settleReceiptDataUrl = "";
     this.activeFilterPill = "all";
     this.rateCache = {};
+    this.attachedReceiptBase64 = "";
     
     this.init();
   }
@@ -904,6 +905,7 @@ class SataSplitApp {
               Paid by <strong>${exp.paidBy}</strong>
               <span class="expense-meta-dot">•</span>
               ${formattedDate}
+              ${exp.hasReceipt ? `<br><span class="receipt-badge-card btn-view-receipt" data-id="${exp.id}">📷 View Receipt</span>` : ""}
             </div>
           </div>
         </div>
@@ -938,6 +940,36 @@ class SataSplitApp {
           this.deleteExpense(exp.id);
         }
       });
+
+      if (exp.hasReceipt) {
+        const btnView = card.querySelector(".btn-view-receipt");
+        if (btnView) {
+          btnView.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            this.vibrate(10);
+            
+            const lightbox = document.getElementById("receipt-lightbox-dialog");
+            const lightboxImg = document.getElementById("receipt-lightbox-img");
+            const lightboxTitle = document.getElementById("receipt-lightbox-title");
+            
+            if (lightbox && lightboxImg && lightboxTitle) {
+              lightboxImg.style.display = "none";
+              lightboxImg.src = "";
+              lightboxTitle.textContent = `Loading Receipt for "${exp.description}"...`;
+              lightbox.showModal();
+              
+              const imageBase64 = await this.getReceiptImage(exp.id);
+              if (imageBase64) {
+                lightboxImg.src = imageBase64;
+                lightboxImg.style.display = "block";
+                lightboxTitle.textContent = `Receipt Proof: "${exp.description}"`;
+              } else {
+                lightboxTitle.textContent = `⚠️ Receipt Image Not Found (Purged or missing)`;
+              }
+            }
+          });
+        }
+      }
       
       // Clicking the card opens detail log
       card.addEventListener("click", () => {
@@ -950,8 +982,41 @@ class SataSplitApp {
 
   // --- Actions & Mutations ---
 
+  async handleReceiptAttachment(expenseId) {
+    if (this.attachedReceiptBase64) {
+      await this.saveReceiptImage(expenseId, this.attachedReceiptBase64);
+      
+      this.activeGroup.receiptList = this.activeGroup.receiptList || [];
+      this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => item.expenseId !== expenseId);
+      this.activeGroup.receiptList.push({ expenseId, timestamp: Date.now() });
+      
+      // Auto-purge oldest if > 50
+      while (this.activeGroup.receiptList.length > 50) {
+        const oldest = this.activeGroup.receiptList.shift();
+        await this.deleteReceiptImage(oldest.expenseId);
+        
+        const oldExp = this.activeGroup.expenses.find(e => e.id === oldest.expenseId);
+        if (oldExp) {
+          delete oldExp.hasReceipt;
+        }
+      }
+      
+      this.attachedReceiptBase64 = "";
+      const indicator = document.getElementById("expense-receipt-indicator");
+      if (indicator) indicator.style.display = "none";
+      return true;
+    }
+    return false;
+  }
+
   async addExpense(expenseData) {
     if (!this.activeGroup) return;
+
+    if (this.attachedReceiptBase64) {
+      expenseData.hasReceipt = true;
+      await this.handleReceiptAttachment(expenseData.id);
+    }
+
     this.activeGroup.expenses.push(expenseData);
     this.logActivity(`added expense "${expenseData.description}" of ${this.activeGroup.currency}${parseFloat(expenseData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
@@ -963,6 +1028,12 @@ class SataSplitApp {
     const index = this.activeGroup.expenses.findIndex(e => e.id === id);
     if (index !== -1) {
       const oldDesc = this.activeGroup.expenses[index].description;
+      
+      if (this.attachedReceiptBase64) {
+        updatedData.hasReceipt = true;
+        await this.handleReceiptAttachment(id);
+      }
+
       this.activeGroup.expenses[index] = { ...this.activeGroup.expenses[index], ...updatedData };
       this.logActivity(`updated expense "${oldDesc}" to "${updatedData.description}" (${this.activeGroup.currency}${parseFloat(updatedData.amount).toFixed(2)})`, false);
       await this.triggerStateSave();
@@ -976,6 +1047,15 @@ class SataSplitApp {
     if (!exp) return;
     
     this.lastDeletedItem = { type: "expense", data: exp };
+    
+    if (exp.hasReceipt) {
+      const receiptData = await this.getReceiptImage(id);
+      this.lastDeletedItem.receiptData = receiptData;
+      await this.deleteReceiptImage(id);
+      if (this.activeGroup.receiptList) {
+        this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => item.expenseId !== id);
+      }
+    }
     
     this.activeGroup.expenses = this.activeGroup.expenses.filter(e => e.id !== id);
     this.logActivity(`deleted expense "${exp.description}"`, false);
@@ -1019,6 +1099,20 @@ class SataSplitApp {
     // Reset Form
     form.reset();
     
+    this.attachedReceiptBase64 = "";
+    const indicator = document.getElementById("expense-receipt-indicator");
+    if (indicator) {
+      indicator.style.display = "none";
+      if (expenseToEdit && expenseToEdit.hasReceipt) {
+        indicator.textContent = "📎 Receipt Photo Attached";
+        indicator.style.display = "inline-block";
+        indicator.style.color = "var(--primary-color)";
+      } else {
+        indicator.textContent = "📎 Image Attached";
+        indicator.style.color = "var(--success-color)";
+      }
+    }
+
     document.getElementById("expense-desc-suggestions").innerHTML = "";
     document.getElementById("expense-desc-suggestions").style.display = "none";
     
@@ -1069,8 +1163,11 @@ class SataSplitApp {
       converterSection.style.display = "none";
       const fAmount = document.getElementById("expense-foreign-amount");
       if (fAmount) fAmount.value = "";
-      document.getElementById("exchange-rate-value").textContent = "-";
-      document.getElementById("converted-amount-preview").textContent = "-";
+      
+      const rateDisplay = document.getElementById("expense-exchange-rate-display");
+      const previewDisplay = document.getElementById("expense-converted-preview");
+      if (rateDisplay) rateDisplay.textContent = "-";
+      if (previewDisplay) previewDisplay.textContent = "-";
     }
 
     this.renderSplitFormInputs(expenseToEdit);
@@ -1759,6 +1856,58 @@ class SataSplitApp {
     document.body.removeChild(link);
   }
 
+  async saveReceiptImage(expenseId, base64Data) {
+    if (!this.activeGroup) return;
+    const groupId = this.activeGroup.id;
+    if (this.storage instanceof LocalStorageAdapter) {
+      localStorage.setItem(`fairshare_receipt_${groupId}_${expenseId}`, base64Data);
+    } else {
+      try {
+        const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
+        await setDoc(docRef, { image: base64Data, updatedAt: Date.now() });
+      } catch (err) {
+        console.error("Firestore save receipt error:", err);
+      }
+    }
+  }
+
+  async getReceiptImage(expenseId) {
+    if (!this.activeGroup) return null;
+    const groupId = this.activeGroup.id;
+    if (this.storage instanceof LocalStorageAdapter) {
+      return localStorage.getItem(`fairshare_receipt_${groupId}_${expenseId}`);
+    } else {
+      try {
+        const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          return snap.data().image;
+        }
+      } catch (err) {
+        console.error("Firestore get receipt error:", err);
+      }
+      return null;
+    }
+  }
+
+  async deleteReceiptImage(expenseId) {
+    if (!this.activeGroup) return;
+    const groupId = this.activeGroup.id;
+    if (this.storage instanceof LocalStorageAdapter) {
+      localStorage.removeItem(`fairshare_receipt_${groupId}_${expenseId}`);
+    } else {
+      try {
+        const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
+        await deleteDoc(docRef);
+      } catch (err) {
+        console.error("Firestore delete receipt error:", err);
+      }
+    }
+  }
+
   // --- Event Listeners Binder ---
 
   setupEventListeners() {
@@ -2308,16 +2457,15 @@ class SataSplitApp {
 
     // 17. Lightbox triggers
     document.getElementById("btn-close-lightbox").addEventListener("click", () => {
-      const lightbox = document.getElementById("receipt-lightbox-dialog");
-      lightbox.close();
-      lightbox.style.display = "none";
+      this.vibrate(10);
+      document.getElementById("receipt-lightbox-dialog").close();
     });
 
     document.getElementById("receipt-lightbox-dialog").addEventListener("click", (e) => {
       const lightbox = document.getElementById("receipt-lightbox-dialog");
       if (e.target === lightbox) {
+        this.vibrate(10);
         lightbox.close();
-        lightbox.style.display = "none";
       }
     });
 
@@ -2898,6 +3046,11 @@ class SataSplitApp {
     const { type, data } = this.lastDeletedItem;
     if (type === "expense") {
       this.activeGroup.expenses.push(data);
+      if (data.hasReceipt && this.lastDeletedItem.receiptData) {
+        await this.saveReceiptImage(data.id, this.lastDeletedItem.receiptData);
+        this.activeGroup.receiptList = this.activeGroup.receiptList || [];
+        this.activeGroup.receiptList.push({ expenseId: data.id, timestamp: Date.now() });
+      }
       this.logActivity(`restored expense "${data.description}"`, false);
       await this.triggerStateSave();
       this.showToast(`Restored expense "${data.description}"`, "success");
@@ -3041,6 +3194,14 @@ class SataSplitApp {
       });
 
       const base64Data = await getBase64(file);
+      
+      this.attachedReceiptBase64 = `data:${file.type};base64,${base64Data}`;
+      const indicator = document.getElementById("expense-receipt-indicator");
+      if (indicator) {
+        indicator.textContent = "📎 Image Attached";
+        indicator.style.color = "var(--success-color)";
+        indicator.style.display = "inline-block";
+      }
       
       scannerStatus.textContent = "Analyzing with Gemini AI...";
 
