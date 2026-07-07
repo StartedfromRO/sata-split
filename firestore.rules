@@ -48,7 +48,7 @@ service cloud.firestore {
 // Validates the structure, types, and constraints of a group document
 function isValidGroup(data) {
   return data.keys().hasAll(['id', 'name', 'currency', 'members', 'expenses', 'settlements', 'bankDetails', 'updatedAt']) &&
-         data.keys().hasOnly(['id', 'name', 'currency', 'members', 'expenses', 'settlements', 'bankDetails', 'updatedAt', 'notes', 'geminiApiKey']) &&
+         data.keys().hasOnly(['id', 'name', 'currency', 'members', 'expenses', 'settlements', 'bankDetails', 'updatedAt', 'notes', 'geminiApiKey', 'activities']) &&
          data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
          data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
          data.currency is string && data.currency.size() > 0 && data.currency.size() <= 10 &&
@@ -58,5 +58,6 @@ function isValidGroup(data) {
          data.bankDetails is map && data.bankDetails.keys().size() <= 50 &&
          data.updatedAt is number &&
          (!data.keys().hasAny(['notes']) || data.notes is list) &&
-         (!data.keys().hasAny(['geminiApiKey']) || data.geminiApiKey is string);
+         (!data.keys().hasAny(['geminiApiKey']) || data.geminiApiKey is string) &&
+         (!data.keys().hasAny(['activities']) || data.activities is list);
 }
