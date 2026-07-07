@@ -1593,55 +1593,57 @@ class SataSplitApp {
     const contentActivity = document.getElementById("tab-content-activity");
     const contentNotes = document.getElementById("tab-content-notes");
 
-    tabExpenses.addEventListener("click", () => {
-      tabExpenses.classList.add("active");
-      tabBalances.classList.remove("active");
-      tabActivity.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentExpenses.classList.add("active");
-      contentBalances.classList.remove("active");
-      contentActivity.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "expenses";
-    });
+    if (tabExpenses && tabBalances && tabActivity && tabNotes && contentExpenses && contentBalances && contentActivity && contentNotes) {
+      tabExpenses.addEventListener("click", () => {
+        tabExpenses.classList.add("active");
+        tabBalances.classList.remove("active");
+        tabActivity.classList.remove("active");
+        tabNotes.classList.remove("active");
+        contentExpenses.classList.add("active");
+        contentBalances.classList.remove("active");
+        contentActivity.classList.remove("active");
+        contentNotes.classList.remove("active");
+        this.activeTab = "expenses";
+      });
 
-    tabBalances.addEventListener("click", () => {
-      tabBalances.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabActivity.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentBalances.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentActivity.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "balances";
-    });
+      tabBalances.addEventListener("click", () => {
+        tabBalances.classList.add("active");
+        tabExpenses.classList.remove("active");
+        tabActivity.classList.remove("active");
+        tabNotes.classList.remove("active");
+        contentBalances.classList.add("active");
+        contentExpenses.classList.remove("active");
+        contentActivity.classList.remove("active");
+        contentNotes.classList.remove("active");
+        this.activeTab = "balances";
+      });
 
-    tabActivity.addEventListener("click", () => {
-      tabActivity.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabBalances.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentActivity.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentBalances.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "activity";
-      this.renderActivityFeed();
-    });
+      tabActivity.addEventListener("click", () => {
+        tabActivity.classList.add("active");
+        tabExpenses.classList.remove("active");
+        tabBalances.classList.remove("active");
+        tabNotes.classList.remove("active");
+        contentActivity.classList.add("active");
+        contentExpenses.classList.remove("active");
+        contentBalances.classList.remove("active");
+        contentNotes.classList.remove("active");
+        this.activeTab = "activity";
+        this.renderActivityFeed();
+      });
 
-    tabNotes.addEventListener("click", () => {
-      tabNotes.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabBalances.classList.remove("active");
-      tabActivity.classList.remove("active");
-      contentNotes.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentBalances.classList.remove("active");
-      contentActivity.classList.remove("active");
-      this.activeTab = "notes";
-      this.renderNotesWall();
-    });
+      tabNotes.addEventListener("click", () => {
+        tabNotes.classList.add("active");
+        tabExpenses.classList.remove("active");
+        tabBalances.classList.remove("active");
+        tabActivity.classList.remove("active");
+        contentNotes.classList.add("active");
+        contentExpenses.classList.remove("active");
+        contentBalances.classList.remove("active");
+        contentActivity.classList.remove("active");
+        this.activeTab = "notes";
+        this.renderNotesWall();
+      });
+    }
 
     // 5. Search and Filters
     document.getElementById("expense-search").addEventListener("input", () => this.renderDashboard());
