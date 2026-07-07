@@ -1451,3 +1451,52 @@ body.light-theme .expense-card {
   50% { top: 100%; }
   100% { top: 0%; }
 }
+
+/* Quick Filters Pills Scrollbar */
+.quick-filters-bar::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for clean aesthetic */
+}
+
+.filter-pill {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.filter-pill:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-pill.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+/* Light Theme overrides for filter pills */
+body.light-theme .filter-pill {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
+}
+
+body.light-theme .filter-pill:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+}
+
+body.light-theme .filter-pill.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}

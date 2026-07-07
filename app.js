@@ -248,6 +248,8 @@ class SataSplitApp {
     this.unsubscribeActiveListener = null;
     this.lastDeletedItem = null;
     this.settleReceiptDataUrl = "";
+    this.activeFilterPill = "all";
+    this.rateCache = {};
     
     this.init();
   }
@@ -319,6 +321,17 @@ class SataSplitApp {
       if (groupData) {
         this.activeGroup = groupData;
         localStorage.setItem("fairshare_last_active_group", groupId);
+        
+        // Reset filters when switching groups
+        this.activeFilterPill = "all";
+        const filterPills = document.querySelectorAll(".filter-pill");
+        filterPills.forEach(p => {
+          if (p.getAttribute("data-filter") === "all") {
+            p.classList.add("active");
+          } else {
+            p.classList.remove("active");
+          }
+        });
         
         // Ensure currentUser is still in the group, otherwise fallback to first member
         const savedName = localStorage.getItem("fairshare_my_name");
@@ -789,14 +802,28 @@ class SataSplitApp {
                           (exp.category && exp.category.toLowerCase().includes(searchVal)) ||
                           exp.paidBy.toLowerCase().includes(searchVal);
       const matchCat = categoryVal === "all" || exp.category === categoryVal;
-      return matchSearch && matchCat;
+      
+      let matchPill = true;
+      if (this.activeFilterPill === "paid-by-me") {
+        matchPill = exp.paidBy === this.currentUser;
+      } else if (this.activeFilterPill === "unequal") {
+        matchPill = exp.splitType && exp.splitType !== "equal";
+      } else if (this.activeFilterPill === "high-value") {
+        matchPill = (parseFloat(exp.amount) || 0) > 100;
+      } else if (this.activeFilterPill === "this-month") {
+        const expDate = new Date(exp.date);
+        const now = new Date();
+        matchPill = expDate.getFullYear() === now.getFullYear() && expDate.getMonth() === now.getMonth();
+      }
+
+      return matchSearch && matchCat && matchPill;
     });
 
     if (filtered.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h.007v.008H3.75V4.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3 7.5h18M5.25 7.5V16.5a1.5 1.5 0 0 0 1.5 1.5h10.5a1.5 1.5 0 0 0 1.5-1.5V7.5M9 10.5h6"></path></svg>
-          <p>No expenses found. Click "Add Expense" to get started!</p>
+          <p>No matching expenses found.</p>
         </div>
       `;
       return;
@@ -1032,6 +1059,18 @@ class SataSplitApp {
       // Set defaults
       form.querySelector('input[name="expense-category"][value="meals"]').checked = true;
       form.querySelector('input[name="split-type"][value="equal"]').checked = true;
+    }
+
+    // Reset Currency Converter Form State
+    const converterToggle = document.getElementById("expense-convert-currency-toggle");
+    const converterSection = document.getElementById("currency-converter-section");
+    if (converterToggle && converterSection) {
+      converterToggle.checked = false;
+      converterSection.style.display = "none";
+      const fAmount = document.getElementById("expense-foreign-amount");
+      if (fAmount) fAmount.value = "";
+      document.getElementById("exchange-rate-value").textContent = "-";
+      document.getElementById("converted-amount-preview").textContent = "-";
     }
 
     this.renderSplitFormInputs(expenseToEdit);
@@ -1583,6 +1622,143 @@ class SataSplitApp {
     }
   }
 
+  mapSymbolToCode(symbol) {
+    const clean = (symbol || "").trim().toUpperCase();
+    if (clean === "RM" || clean === "MYR") return "MYR";
+    if (clean === "$" || clean === "USD") return "USD";
+    if (clean === "€" || clean === "EUR") return "EUR";
+    if (clean === "£" || clean === "GBP") return "GBP";
+    if (clean === "SGD") return "SGD";
+    if (clean === "THB" || clean === "฿") return "THB";
+    if (clean === "IDR") return "IDR";
+    if (clean === "VND") return "VND";
+    if (clean === "PHP") return "PHP";
+    if (clean === "JPY" || clean === "🇯🇵") return "JPY";
+    if (clean === "AUD") return "AUD";
+    return "USD"; // Default fallback
+  }
+
+  async fetchExchangeRate(fromCurrency, toCurrency) {
+    this.rateCache = this.rateCache || {};
+    const cacheKey = `${fromCurrency}_${toCurrency}`;
+    
+    // Cache rates for 1 hour to avoid rate limit / slow responses
+    const cached = this.rateCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp < 3600000)) {
+      return cached.rate;
+    }
+
+    try {
+      const res = await fetch(`https://open.er-api.com/v6/latest/${fromCurrency}`);
+      if (!res.ok) throw new Error("API network error");
+      const data = await res.json();
+      if (data && data.rates && data.rates[toCurrency]) {
+        const rate = data.rates[toCurrency];
+        this.rateCache[cacheKey] = {
+          rate,
+          timestamp: Date.now()
+        };
+        return rate;
+      }
+      throw new Error("Currency rate not found in API response");
+    } catch (err) {
+      console.error("Exchange rate API fetch failed: ", err);
+      // Local static estimate fallbacks in case user is offline or API fails
+      const fallbacks = {
+        "SGD_MYR": 3.45, "MYR_SGD": 0.29,
+        "USD_MYR": 4.65, "MYR_USD": 0.215,
+        "THB_MYR": 0.13, "MYR_THB": 7.7,
+        "EUR_MYR": 5.0, "MYR_EUR": 0.2,
+        "GBP_MYR": 5.8, "MYR_GBP": 0.17
+      };
+      
+      if (fallbacks[cacheKey]) return fallbacks[cacheKey];
+      if (fallbacks[`${toCurrency}_${fromCurrency}`]) return 1 / fallbacks[`${toCurrency}_${fromCurrency}`];
+      return 1.0;
+    }
+  }
+
+  async calculateForeignCurrency() {
+    const toggle = document.getElementById("expense-convert-currency-toggle");
+    const section = document.getElementById("currency-converter-section");
+    if (!toggle || !section) return;
+
+    if (!toggle.checked) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "flex";
+    const foreignCurrency = document.getElementById("expense-foreign-currency").value;
+    const foreignAmount = parseFloat(document.getElementById("expense-foreign-amount").value) || 0;
+    const baseCurrencySymbol = this.activeGroup ? this.activeGroup.currency : "RM";
+    const baseCurrencyCode = this.mapSymbolToCode(baseCurrencySymbol);
+    
+    const rateDisplay = document.getElementById("exchange-rate-value");
+    const previewDisplay = document.getElementById("converted-amount-preview");
+    const mainAmountInput = document.getElementById("expense-amount");
+
+    if (foreignAmount <= 0) {
+      rateDisplay.textContent = "-";
+      previewDisplay.textContent = "-";
+      return;
+    }
+
+    rateDisplay.textContent = "Fetching...";
+    const rate = await this.fetchExchangeRate(foreignCurrency, baseCurrencyCode);
+    const converted = foreignAmount * rate;
+
+    rateDisplay.textContent = `1 ${foreignCurrency} = ${rate.toFixed(4)} ${baseCurrencyCode}`;
+    previewDisplay.textContent = `${baseCurrencySymbol}${converted.toFixed(2)}`;
+    
+    // Update main input value
+    mainAmountInput.value = converted.toFixed(2);
+    
+    // Trigger split values redraw
+    this.renderSplitFormInputs();
+  }
+
+  exportLedgerToCSV() {
+    this.vibrate(15);
+    if (!this.activeGroup || !this.activeGroup.expenses || this.activeGroup.expenses.length === 0) {
+      this.showToast("No expenses to export!", "warning");
+      return;
+    }
+
+    const headers = ["Date", "Description", "Category", "Amount", "Paid By", "Split Method", "Split Details"];
+    const rows = this.activeGroup.expenses.map(exp => {
+      // Escape strings containing quotes or commas
+      const desc = `"${exp.description.replace(/"/g, '""')}"`;
+      const cat = exp.category;
+      const amt = exp.amount.toFixed(2);
+      const paidBy = exp.paidBy;
+      const method = exp.splitType;
+      const date = exp.date;
+      
+      // Split shares detailed string format: "Ban: RM10.00, ED: RM20.00"
+      let splitDetails = "";
+      if (exp.shares) {
+        splitDetails = Object.entries(exp.shares)
+          .map(([mem, share]) => `${mem}: ${this.activeGroup.currency}${parseFloat(share).toFixed(2)}`)
+          .join(" | ");
+      }
+      const splitDetailsEscaped = `"${splitDetails.replace(/"/g, '""')}"`;
+
+      return [date, desc, cat, amt, paidBy, method, splitDetailsEscaped];
+    });
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${this.activeGroup.name || "Group"}_Ledger.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   // --- Event Listeners Binder ---
 
   setupEventListeners() {
@@ -1670,6 +1846,48 @@ class SataSplitApp {
     // 5. Search and Filters
     document.getElementById("expense-search").addEventListener("input", () => this.renderDashboard());
     document.getElementById("expense-filter-category").addEventListener("change", () => this.renderDashboard());
+
+    // Export Ledger CSV Action
+    const btnExport = document.getElementById("btn-export-ledger");
+    if (btnExport) {
+      btnExport.addEventListener("click", () => this.exportLedgerToCSV());
+    }
+
+    // Quick Filter Pills Event Listeners
+    const filterPills = document.querySelectorAll(".filter-pill");
+    filterPills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        this.vibrate(10);
+        filterPills.forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        this.activeFilterPill = pill.getAttribute("data-filter");
+        this.renderDashboard();
+      });
+    });
+
+    // Currency Converter Interactive Elements
+    const converterToggle = document.getElementById("expense-convert-currency-toggle");
+    if (converterToggle) {
+      converterToggle.addEventListener("change", () => {
+        this.vibrate(10);
+        this.calculateForeignCurrency();
+      });
+    }
+
+    const foreignCurrencySelect = document.getElementById("expense-foreign-currency");
+    if (foreignCurrencySelect) {
+      foreignCurrencySelect.addEventListener("change", () => {
+        this.vibrate(10);
+        this.calculateForeignCurrency();
+      });
+    }
+
+    const foreignAmountInput = document.getElementById("expense-foreign-amount");
+    if (foreignAmountInput) {
+      foreignAmountInput.addEventListener("input", () => {
+        this.calculateForeignCurrency();
+      });
+    }
 
     // 6. Expense Modal triggers
     document.getElementById("btn-open-expense-dialog").addEventListener("click", () => this.openExpenseForm());

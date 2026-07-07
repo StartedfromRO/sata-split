@@ -148,6 +148,12 @@
               <span>Charts</span>
             </button>
             
+            <!-- Export Ledger Button -->
+            <button id="btn-export-ledger" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; padding: 0.65rem 0.85rem;" type="button">
+              <span>📥</span>
+              <span>Export</span>
+            </button>
+            
             <!-- Add Expense Button -->
             <button id="btn-open-expense-dialog" class="btn btn-primary">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 0.25rem;">
@@ -155,6 +161,15 @@
               </svg>
               Add Expense
             </button>
+          </div>
+          
+          <!-- Quick Filters Pills -->
+          <div id="quick-filters-bar" class="quick-filters-bar" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; -webkit-overflow-scrolling: touch;">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="paid-by-me">Paid by Me</button>
+            <button class="filter-pill" data-filter="unequal">Split Unequally</button>
+            <button class="filter-pill" data-filter="high-value">High Value</button>
+            <button class="filter-pill" data-filter="this-month">This Month</button>
           </div>
           
           <!-- Analytics Collapsible Panel -->
@@ -334,6 +349,43 @@
           <div class="form-group">
             <label for="expense-date">Date</label>
             <input type="date" id="expense-date" class="form-input" required>
+          </div>
+        </div>
+        
+        <!-- Currency Converter Toggle -->
+        <div style="margin-bottom: 0.75rem;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--primary-color);">
+            <input type="checkbox" id="expense-convert-currency-toggle" style="width: 1rem; height: 1rem; cursor: pointer;">
+            Convert Foreign Currency? 💱
+          </label>
+        </div>
+
+        <!-- Hidden Currency Converter Section -->
+        <div id="currency-converter-section" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.75rem 1rem; margin-bottom: 1rem; gap: 0.75rem; flex-direction: column;">
+          <div style="display: flex; gap: 0.75rem;">
+            <div style="flex: 1;">
+              <label for="expense-foreign-currency" style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">Foreign Currency</label>
+              <select id="expense-foreign-currency" class="select-input" style="width: 100%; border-radius: var(--radius-sm); padding: 0.4rem 0.5rem; background: var(--bg-color); border: 1px solid var(--surface-border); color: var(--text-primary);">
+                <option value="SGD">🇸🇬 SGD (Singapore Dollar)</option>
+                <option value="USD">🇺🇸 USD (US Dollar)</option>
+                <option value="THB">🇹🇭 THB (Thai Baht)</option>
+                <option value="EUR">🇪🇺 EUR (Euro)</option>
+                <option value="GBP">🇬🇧 GBP (British Pound)</option>
+                <option value="IDR">🇮🇩 IDR (Indonesian Rupiah)</option>
+                <option value="VND">🇻🇳 VND (Vietnamese Dong)</option>
+                <option value="PHP">🇵🇭 PHP (Philippine Peso)</option>
+                <option value="JPY">🇯🇵 JPY (Japanese Yen)</option>
+                <option value="AUD">🇦🇺 AUD (Australian Dollar)</option>
+              </select>
+            </div>
+            <div style="flex: 1.2;">
+              <label for="expense-foreign-amount" style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">Foreign Amount</label>
+              <input type="number" id="expense-foreign-amount" class="form-input" placeholder="0.00" step="0.01" min="0.01" style="width: 100%; box-sizing: border-box; border-radius: var(--radius-sm); padding: 0.4rem 0.5rem;">
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); border-top: 1px dotted var(--surface-border); padding-top: 0.5rem; margin-top: 0.25rem;">
+            <div>Exchange Rate: <span id="exchange-rate-value" style="font-weight: 700; color: var(--primary-color);">-</span></div>
+            <div>Converted: <span id="converted-amount-preview" style="font-weight: 700; color: var(--success-color);">-</span></div>
           </div>
         </div>
         
