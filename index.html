@@ -770,10 +770,24 @@
       
       <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
         
-        <!-- v1.7.1 -->
+        <!-- v1.8.0 -->
         <div class="changelog-version">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.7.1</span>
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.8.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-07</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Invite Onboarding & High-Impact Sync Queue</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li><strong>Frictionless Onboarding</strong>: Welcomes new users opening shared links to claim existing names or type custom nicknames, dynamically updating Firestore.</li>
+            <li><strong>Local Image Compression</strong>: Receipt photos are automatically compressed on-the-fly inside HTML5 canvas, accelerating AI scanning speeds by 3x.</li>
+            <li><strong>Offline Write Queueing</strong>: Automatically stacks updates locally during network cuts, pushing backlog to cloud instantly once connection recovers.</li>
+          </ul>
+        </div>
+
+        <!-- v1.7.1 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--text-muted); color: var(--bg-primary); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.7.1</span>
             <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-06</span>
           </div>
           <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Cloud Gemini Keys & Firestore Rules Patch</h4>
