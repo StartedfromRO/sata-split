@@ -505,13 +505,14 @@ class SataSplitApp {
   async updateGroupSelects() {
     const groupSelect = document.getElementById("group-select");
     const userSelect = document.getElementById("user-select");
+    if (!groupSelect || !userSelect) return;
     
-    // Clear list
-    groupSelect.innerHTML = "";
-    userSelect.innerHTML = "";
-
     // Populate Group dropdown
     const allGroups = await this.storage.getGroups();
+    
+    // Clear list right before drawing (prevents concurrent race duplicates)
+    groupSelect.innerHTML = "";
+    userSelect.innerHTML = "";
     
     // Ensure activeGroup is in the list
     if (this.activeGroup && !allGroups[this.activeGroup.id]) {
