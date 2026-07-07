@@ -243,7 +243,7 @@ class SataSplitApp {
   constructor() {
     this.storage = new LocalStorageAdapter(); // Default
     this.activeGroup = null;
-    this.currentUser = "Ban";
+    this.currentUser = localStorage.getItem("fairshare_my_name") || "Ban";
     this.activeTab = "expenses";
     this.unsubscribeActiveListener = null;
     this.lastDeletedItem = null;
@@ -321,12 +321,16 @@ class SataSplitApp {
         localStorage.setItem("fairshare_last_active_group", groupId);
         
         // Ensure currentUser is still in the group, otherwise fallback to first member
-        if (!this.activeGroup.members.includes(this.currentUser)) {
+        const savedName = localStorage.getItem("fairshare_my_name");
+        if (savedName && this.activeGroup.members.includes(savedName)) {
+          this.currentUser = savedName;
+        } else if (!this.activeGroup.members.includes(this.currentUser)) {
           this.currentUser = this.activeGroup.members[0] || "Ban";
         }
         
         this.updateGroupSelects();
         this.renderDashboard();
+        this.checkOnboarding();
       } else {
         // Group data is null (does not exist in storage)
         if (groupId === "default-group") {
@@ -363,6 +367,14 @@ class SataSplitApp {
 
   async triggerStateSave() {
     if (this.activeGroup) {
+      if (!navigator.onLine && isFirebaseEnabled) {
+        console.log("Device offline. Queuing write transaction locally...");
+        localStorage.setItem("fairshare_offline_queued_group_" + this.activeGroup.id, JSON.stringify(this.activeGroup));
+        this.showToast("Offline mode: changes queued and will sync when online.", "warning");
+        this.renderDashboard();
+        return;
+      }
+      
       try {
         await this.storage.saveGroup(this.activeGroup);
         if (!isFirebaseEnabled) {
@@ -1560,6 +1572,7 @@ class SataSplitApp {
     // 2. Active User Selector
     document.getElementById("user-select").addEventListener("change", (e) => {
       this.currentUser = e.target.value;
+      localStorage.setItem("fairshare_my_name", e.target.value);
       this.renderDashboard();
     });
 
@@ -2231,9 +2244,28 @@ class SataSplitApp {
       scanFileInput.click();
     });
     
-    scanFileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
+    scanFileInput.addEventListener("change", async (e) => {
+      let file = e.target.files[0];
       if (file) {
+        if (file.type.startsWith("image/")) {
+          const originalSizeKB = (file.size / 1024).toFixed(1);
+          console.log(`Original image size: ${originalSizeKB} KB`);
+          
+          const scannerStatus = document.getElementById("scanner-status");
+          const scannerOverlay = document.getElementById("scanner-overlay");
+          scannerOverlay.style.display = "flex";
+          scannerStatus.textContent = "Compressing Receipt Image...";
+          
+          try {
+            file = await this.compressImage(file);
+            const compressedSizeKB = (file.size / 1024).toFixed(1);
+            console.log(`Compressed image size: ${compressedSizeKB} KB`);
+          } catch (compressErr) {
+            console.warn("Image compression failed, using original file: ", compressErr);
+          } finally {
+            scannerOverlay.style.display = "none";
+          }
+        }
         this.performGeminiScan(file);
       }
     });
@@ -2252,6 +2284,84 @@ class SataSplitApp {
           document.getElementById("settle-qr-img").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(qrData);
           qrPanel.style.display = "flex";
         }
+      }
+    });
+
+    // 24. Onboarding Form Submission
+    const onboardingDialog = document.getElementById("onboarding-dialog");
+    const onboardingForm = document.getElementById("onboarding-form");
+    if (onboardingForm) {
+      onboardingForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const selectVal = document.getElementById("onboarding-select-member").value;
+        const inputVal = document.getElementById("onboarding-input-name").value.trim();
+        
+        let chosenName = "";
+        
+        if (inputVal) {
+          const newName = inputVal.charAt(0).toUpperCase() + inputVal.slice(1);
+          
+          if (this.activeGroup.members.some(m => m.toLowerCase() === newName.toLowerCase())) {
+            this.showToast(`"${newName}" is already in the group! Please choose it from the select list or use another nickname.`, "error");
+            return;
+          }
+          
+          this.activeGroup.members.push(newName);
+          this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
+          this.activeGroup.bankDetails[newName] = {
+            bankName: "",
+            accountNumber: "",
+            fullName: newName,
+            qrCode: ""
+          };
+          
+          chosenName = newName;
+          this.logActivity(`joined the group as a new member named ${newName}`, false);
+          await this.triggerStateSave();
+        } else if (selectVal) {
+          chosenName = selectVal;
+          this.logActivity(`joined the group as ${selectVal}`, true);
+        } else {
+          this.showToast("Please select an existing name OR type a nickname to join!", "error");
+          return;
+        }
+        
+        localStorage.setItem("fairshare_my_name", chosenName);
+        this.currentUser = chosenName;
+        
+        this.updateGroupSelects();
+        this.renderDashboard();
+        
+        onboardingDialog.close();
+        this.showToast(`Welcome to SATA Split, ${chosenName}!`, "success");
+      });
+    }
+
+    // 25. Offline Queue Sync Handler
+    window.addEventListener("online", async () => {
+      this.showToast("Network restored! Syncing offline changes...", "info");
+      
+      let syncedAny = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("fairshare_offline_queued_group_")) {
+          try {
+            const groupData = JSON.parse(localStorage.getItem(key));
+            if (groupData && groupData.id) {
+              await this.storage.saveGroup(groupData);
+              localStorage.removeItem(key);
+              syncedAny = true;
+              console.log(`Synced offline group changes for ${groupData.id}`);
+            }
+          } catch (err) {
+            console.error("Failed to sync offline group: ", err);
+          }
+        }
+      }
+      
+      if (syncedAny) {
+        this.showToast("All offline changes synced to Cloud successfully!", "success");
+        this.switchGroup(this.activeGroup.id);
       }
     });
   }
@@ -2773,6 +2883,82 @@ class SataSplitApp {
     }
     const crcString = crc.toString(16).toUpperCase().padStart(4, '0');
     return payload + crcString;
+  }
+
+  checkOnboarding() {
+    if (!this.activeGroup) return;
+
+    const savedName = localStorage.getItem("fairshare_my_name");
+    const memberExists = savedName && this.activeGroup.members.includes(savedName);
+
+    const dialog = document.getElementById("onboarding-dialog");
+    if (!memberExists && dialog && !dialog.open) {
+      this.openOnboardingDialog();
+    }
+  }
+
+  openOnboardingDialog() {
+    const dialog = document.getElementById("onboarding-dialog");
+    if (!dialog) return;
+
+    dialog.addEventListener("cancel", (e) => e.preventDefault());
+    
+    const select = document.getElementById("onboarding-select-member");
+    select.innerHTML = '<option value="">-- Select Member Name --</option>';
+    
+    this.activeGroup.members.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+
+    document.getElementById("onboarding-input-name").value = "";
+    dialog.showModal();
+  }
+
+  compressImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 1024;
+          const MAX_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          }, "image/jpeg", 0.7);
+        };
+      };
+    });
   }
 }
 

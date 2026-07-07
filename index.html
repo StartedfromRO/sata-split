@@ -910,6 +910,44 @@
     </div>
   </dialog>
 
+  <!-- DIALOG: Onboarding / Invite Welcome Screen -->
+  <dialog id="onboarding-dialog" style="border: none; max-width: 400px; width: calc(100% - 2rem); border-radius: var(--radius-lg); background: var(--surface-bg); backdrop-filter: var(--glass-blur); border: 1px solid var(--surface-border); box-shadow: var(--shadow-lg);">
+    <div class="dialog-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+      <div style="text-align: center;">
+        <span style="font-size: 3rem;">👋</span>
+        <h2 style="margin-top: 0.5rem; font-size: 1.5rem; color: var(--text-primary);">Welcome to SATA Split</h2>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">You've been invited to join this group. To get started, please select your identity or enter a new nickname.</p>
+      </div>
+
+      <form id="onboarding-form" style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Option A: Claim existing name -->
+        <div class="form-group" id="onboarding-select-container">
+          <label for="onboarding-select-member" style="font-weight: 600;">Are you already on this list?</label>
+          <div class="select-wrapper">
+            <select id="onboarding-select-member" class="select-input">
+              <option value="">-- Select Member Name --</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-muted); gap: 0.5rem;">
+          <span style="height: 1px; background: var(--surface-border); flex: 1;"></span>
+          <span>OR CREATE NICKNAME</span>
+          <span style="height: 1px; background: var(--surface-border); flex: 1;"></span>
+        </div>
+
+        <!-- Option B: Custom Nickname -->
+        <div class="form-group">
+          <label for="onboarding-input-name" style="font-weight: 600;">Enter your nickname</label>
+          <input type="text" id="onboarding-input-name" class="form-input" placeholder="e.g. Kelvin, Sarah" autocomplete="off" maxlength="15">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;">Join Group 🚀</button>
+      </form>
+    </div>
+  </dialog>
+
   <!-- DIALOG: Receipt Lightbox Dialog -->
   <dialog id="receipt-lightbox-dialog" style="border: none; background: rgba(0,0,0,0.85); width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: none; align-items: center; justify-content: center; z-index: 10000; padding: 0;">
     <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
