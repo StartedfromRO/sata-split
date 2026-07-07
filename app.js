@@ -1509,6 +1509,15 @@ class SataSplitApp {
   // --- Helper notifications ---
 
   showToast(message, type = "success", actionText = null, actionCallback = null) {
+    // Tactile haptic feedback on updates (12ms for success, 30ms for errors)
+    if (type === "success") {
+      this.vibrate(12);
+    } else if (type === "error" || type === "warning") {
+      this.vibrate(30);
+    } else {
+      this.vibrate(15);
+    }
+
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
@@ -1544,7 +1553,7 @@ class SataSplitApp {
     const duration = actionText ? 5000 : 3000;
     setTimeout(() => {
       if (toast.parentNode) {
-        toast.style.animation = "slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
+        toast.style.animation = "slide-down-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
         setTimeout(() => toast.remove(), 300);
       }
     }, duration);
@@ -1553,12 +1562,24 @@ class SataSplitApp {
   updateThemeIcons(isLight) {
     const sun = document.querySelector(".sun-icon");
     const moon = document.querySelector(".moon-icon");
-    if (isLight) {
-      sun.style.display = "block";
-      moon.style.display = "none";
-    } else {
-      sun.style.display = "none";
-      moon.style.display = "block";
+    if (sun && moon) {
+      if (isLight) {
+        sun.style.display = "block";
+        moon.style.display = "none";
+      } else {
+        sun.style.display = "none";
+        moon.style.display = "block";
+      }
+    }
+  }
+
+  vibrate(duration = 15) {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try {
+        navigator.vibrate(duration);
+      } catch (err) {
+        // Ignore silent vibration fails
+      }
     }
   }
 
@@ -2366,6 +2387,24 @@ class SataSplitApp {
         this.showToast("All offline changes synced to Cloud successfully!", "success");
         this.switchGroup(this.activeGroup.id);
       }
+    });
+
+    // 26. Close dialog modals when clicking outside their card area (on the backdrop overlay)
+    const dialogElements = document.querySelectorAll("dialog");
+    dialogElements.forEach(dlg => {
+      if (dlg.id === "onboarding-dialog") return; // Onboarding dialog is mandatory, do not dismiss on click away
+      
+      dlg.addEventListener("click", (e) => {
+        const rect = dlg.getBoundingClientRect();
+        const isInDialog = (
+          rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+        );
+        if (!isInDialog) {
+          this.vibrate(10);
+          dlg.close();
+        }
+      });
     });
   }
 
