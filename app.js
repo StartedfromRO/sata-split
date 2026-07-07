@@ -600,8 +600,14 @@ class SataSplitApp {
     // 3. Shareable Link
     document.getElementById("share-url-text").textContent = window.location.href;
 
-    // 4. Expenses List
-    this.renderExpensesList(balances);
+    // 4. Active Tab Render
+    if (this.activeTab === "expenses") {
+      this.renderExpensesList(balances);
+    } else if (this.activeTab === "activity") {
+      this.renderActivityFeed();
+    } else if (this.activeTab === "notes") {
+      this.renderNotesWall();
+    }
 
     // 5. Balances List Tab
     const balancesListContainer = document.getElementById("balances-list");
