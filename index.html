@@ -71,12 +71,12 @@
           </button>
           
           <!-- Changelog Button -->
-          <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
+          <button type="button" id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;" onclick="document.getElementById('changelog-dialog').showModal()">
             📜
           </button>
           
           <!-- API Settings Button -->
-          <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
+          <button type="button" id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;" onclick="const cloudKey = (window.app && window.app.activeGroup) ? window.app.activeGroup.geminiApiKey : ''; const savedKey = cloudKey || localStorage.getItem('gemini_api_key') || ''; const inputKey = document.getElementById('input-gemini-key'); if (inputKey) inputKey.value = savedKey; document.getElementById('api-key-dialog').showModal();">
             ⚙️
           </button>
         </div>

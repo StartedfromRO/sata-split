@@ -253,6 +253,7 @@ class SataSplitApp {
     this.attachedReceiptBase64 = "";
     this.isBatchSelectionMode = false;
     this.selectedExpenseIds = new Set();
+    window.app = this;
     
     this.init();
   }
