@@ -4,19 +4,23 @@
  * debt simplification algorithm, and real-time UI synchronization.
  */
 
-// --- Firebase Modular SDK Imports (via CDN) ---
+// --- Firebase Compat SDK Setup ---
 let firebaseApp = null;
 let firestoreDb = null;
 let isFirebaseEnabled = false;
 
-// Dynamic imports of Firebase libraries
-async function initFirebase(config) {
+function initFirebase(config) {
   try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
-    const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    
-    firebaseApp = initializeApp(config);
-    firestoreDb = getFirestore(firebaseApp);
+    if (typeof firebase === "undefined") {
+      console.warn("Firebase SDK script not loaded from CDN.");
+      return false;
+    }
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firestoreDb = firebase.firestore();
     isFirebaseEnabled = true;
     console.log("Firebase initialized successfully.");
     return true;
@@ -108,19 +112,13 @@ class LocalStorageAdapter {
   }
 
   listenToGroup(id, callback) {
-    // Local storage has no real-time push, so we trigger callbacks on updates manually.
-    // We register a simple poll or just let normal actions trigger a reload.
-    // For local storage, we also listen to the window storage event (for multiple local tabs).
     const storageHandler = (e) => {
       if (e.key === this.storageKey) {
         this.getGroup(id).then(callback);
       }
     };
     window.addEventListener("storage", storageHandler);
-    
-    // Initial fetch
     this.getGroup(id).then(callback);
-    
     return () => window.removeEventListener("storage", storageHandler);
   }
 }
@@ -132,18 +130,12 @@ class FirestoreAdapter {
   }
 
   async getGroups() {
-    // Note: In Firestore mode, we don't list all public groups for privacy.
-    // Instead we just keep track of recently accessed group IDs in localStorage.
-    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
+    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || '["default-group"]');
     const groups = {};
-    
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    
     for (const id of recentIds) {
       try {
-        const docRef = doc(this.db, this.collectionName, id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        const docSnap = await this.db.collection(this.collectionName).doc(id).get();
+        if (docSnap.exists) {
           groups[id] = docSnap.data();
         }
       } catch (err) {
@@ -154,30 +146,26 @@ class FirestoreAdapter {
   }
 
   async getGroup(id) {
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const docRef = doc(this.db, this.collectionName, id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      this.trackRecentGroup(id);
-      return docSnap.data();
+    try {
+      const docSnap = await this.db.collection(this.collectionName).doc(id).get();
+      if (docSnap.exists) {
+        this.trackRecentGroup(id);
+        return docSnap.data();
+      }
+    } catch (err) {
+      console.error(`Error fetching group ${id}:`, err);
     }
     return null;
   }
 
   async saveGroup(group) {
-    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     group.updatedAt = Date.now();
-    const docRef = doc(this.db, this.collectionName, group.id);
-    await setDoc(docRef, group);
+    await this.db.collection(this.collectionName).doc(group.id).set(group);
     this.trackRecentGroup(group.id);
   }
 
   async deleteGroup(id) {
-    const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const docRef = doc(this.db, this.collectionName, id);
-    await deleteDoc(docRef);
-    
-    // Also remove from recent groups list in localStorage
+    await this.db.collection(this.collectionName).doc(id).delete();
     const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
     const updatedIds = recentIds.filter(x => x !== id);
     localStorage.setItem("fairshare_recent_groups", JSON.stringify(updatedIds));
@@ -209,20 +197,15 @@ class FirestoreAdapter {
   }
 
   listenToGroup(id, callback) {
-    let unsubscribe = () => {};
-    
-    // Set up real-time listener
-    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
-      const docRef = doc(this.db, this.collectionName, id);
-      unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          callback(docSnap.data());
-        } else {
-          callback(null);
-        }
-      }, (error) => {
-        console.error("Firestore listen error:", error);
-      });
+    const docRef = this.db.collection(this.collectionName).doc(id);
+    const unsubscribe = docRef.onSnapshot((docSnap) => {
+      if (docSnap.exists) {
+        callback(docSnap.data());
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error("Firestore listen error:", error);
     });
 
     return () => unsubscribe();
