@@ -3430,22 +3430,20 @@ class SataSplitApp {
     const isStandalone = window.navigator.standalone === true || 
       window.matchMedia('(display-mode: standalone)').matches;
 
-    // Check if user dismissed prompt previously
     const isDismissed = localStorage.getItem("ios_pwa_prompt_dismissed") === "true";
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    if (isIos && !isStandalone && !isDismissed) {
-      const promptEl = document.getElementById("ios-install-prompt");
-      if (promptEl) {
-        promptEl.style.display = "flex";
-        
-        const closeBtn = document.getElementById("btn-close-ios-prompt");
-        if (closeBtn) {
-          closeBtn.addEventListener("click", () => {
-            promptEl.style.display = "none";
-            localStorage.setItem("ios_pwa_prompt_dismissed", "true");
-          });
-        }
-      }
+    const promptEl = document.getElementById("ios-install-prompt");
+    if (promptEl && isMobile && !isStandalone && !isDismissed) {
+      promptEl.style.display = "flex";
+    }
+
+    const closeBtn = document.getElementById("btn-close-ios-prompt");
+    if (closeBtn && promptEl) {
+      closeBtn.addEventListener("click", () => {
+        promptEl.style.display = "none";
+        localStorage.setItem("ios_pwa_prompt_dismissed", "true");
+      });
     }
   }
 

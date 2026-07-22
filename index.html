@@ -70,6 +70,16 @@
             </svg>
           </button>
           
+          <!-- Switch User Onboarding Button -->
+          <button type="button" id="btn-open-onboarding" class="theme-toggle-btn" aria-label="Choose User" title="Choose / Switch Active User" style="font-size: 1.15rem;" onclick="if(window.app) window.app.openOnboardingDialog()">
+            👤
+          </button>
+
+          <!-- Install App Button -->
+          <button type="button" id="btn-open-install-prompt" class="theme-toggle-btn" aria-label="Install App" title="Install App to Home Screen" style="font-size: 1.15rem;" onclick="document.getElementById('ios-install-prompt').style.display='flex'">
+            📱
+          </button>
+
           <!-- Changelog Button -->
           <button type="button" id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;" onclick="document.getElementById('changelog-dialog').showModal()">
             📜
