@@ -2927,18 +2927,28 @@ class SataSplitApp {
     });
 
     // 15. Open Changelog Dialog
-    document.getElementById("btn-open-changelog").addEventListener("click", () => {
-      document.getElementById("changelog-dialog").showModal();
-    });
+    const btnChangelog = document.getElementById("btn-open-changelog");
+    if (btnChangelog) {
+      btnChangelog.addEventListener("click", () => {
+        this.vibrate(10);
+        const dialog = document.getElementById("changelog-dialog");
+        if (dialog) dialog.showModal();
+      });
+    }
 
     // 21. Gemini API Key Settings Form & Triggers
     const apiKeyDialog = document.getElementById("api-key-dialog");
-    document.getElementById("btn-open-api-settings").addEventListener("click", () => {
-      const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
-      const savedKey = cloudKey || localStorage.getItem("gemini_api_key") || "";
-      document.getElementById("input-gemini-key").value = savedKey;
-      apiKeyDialog.showModal();
-    });
+    const btnApiSettings = document.getElementById("btn-open-api-settings");
+    if (btnApiSettings && apiKeyDialog) {
+      btnApiSettings.addEventListener("click", () => {
+        this.vibrate(10);
+        const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
+        const savedKey = cloudKey || localStorage.getItem("gemini_api_key") || "";
+        const inputKey = document.getElementById("input-gemini-key");
+        if (inputKey) inputKey.value = savedKey;
+        apiKeyDialog.showModal();
+      });
+    }
 
     document.getElementById("api-key-form").addEventListener("submit", async (e) => {
       e.preventDefault();

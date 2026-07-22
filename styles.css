@@ -1153,27 +1153,40 @@ body.light-theme .tutorial-step code {
   border-left: 4px solid var(--danger-color);
 }
 
-/* Theme Toggle Button */
+/* Theme Toggle & Header Icon Buttons */
 .theme-toggle-btn {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
+  padding: 0.45rem;
+  border-radius: var(--radius-md);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  font-size: 1.1rem;
+  min-width: 38px;
+  min-height: 38px;
+  touch-action: manipulation;
+  z-index: 10;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.92);
 }
 
 .theme-toggle-btn:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.15);
   color: var(--text-primary);
 }
 
+body.light-theme .theme-toggle-btn {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 body.light-theme .theme-toggle-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 /* Animations */
