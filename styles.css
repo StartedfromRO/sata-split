@@ -1554,3 +1554,34 @@ body.light-theme .filter-pill.active {
   background: rgba(16, 185, 129, 0.2);
   transform: translateY(-1px);
 }
+
+/* Batch selection mode styling */
+.expense-card.batch-selectable {
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+}
+
+.expense-card.batch-selectable:hover {
+  border-color: var(--primary-color) !important;
+}
+
+.expense-card.batch-selected {
+  border-color: var(--primary-color) !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+}
+
+.expense-batch-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#reset-records-dialog button.glass-panel:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+

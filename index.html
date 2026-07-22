@@ -154,6 +154,12 @@
               <span>Export</span>
             </button>
             
+            <!-- Reset Records Button -->
+            <button id="btn-open-reset-dialog" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; padding: 0.65rem 0.85rem;" type="button" title="Reset or Clear Group Records">
+              <span>🧹</span>
+              <span>Reset</span>
+            </button>
+            
             <!-- Add Expense Button -->
             <button id="btn-open-expense-dialog" class="btn btn-primary">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 0.25rem;">
@@ -726,11 +732,14 @@
           </div>
         </div>
         
-        <!-- Create new group button toggle & Delete Group -->
+        <!-- Create new group button toggle, Reset & Delete Group -->
         <div style="margin-top: 1rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="display: flex; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="button" id="btn-create-new-group" class="btn btn-secondary" style="font-size: 0.85rem; border-color: var(--primary-color); color: var(--primary-color);">
               ＋ Create Group
+            </button>
+            <button type="button" id="btn-reset-group-records" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
+              🧹 Reset Records
             </button>
             <button type="button" id="btn-delete-active-group" class="btn btn-danger" style="font-size: 0.85rem;">
               🗑️ Delete Group
@@ -1028,6 +1037,69 @@
       <div style="margin-top: 1rem; color: white; font-size: 0.9rem; font-weight: 600;" id="receipt-lightbox-title">Receipt Proof</div>
     </div>
   </dialog>
+
+  <!-- DIALOG: Reset / Clear Records Modal -->
+  <dialog id="reset-records-dialog">
+    <div class="dialog-card" style="max-width: 440px;">
+      <div class="dialog-header">
+        <h2 style="display: flex; align-items: center; gap: 0.5rem;">
+          <span>🧹</span>
+          <span>Reset & Purge Records</span>
+        </h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('reset-records-dialog').close()">&times;</button>
+      </div>
+      
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.4;">
+        Select an action to clean up transactions for this group. Group members, bank details, and settings will not be deleted.
+      </p>
+      
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Option 1: Full Reset -->
+        <button type="button" id="btn-action-reset-all" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">💥</div>
+          <div>
+            <div style="font-weight: 700; color: var(--danger-color); font-size: 0.95rem;">Reset All Group Records</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Wipe all expenses, settlements, receipt photos, and activity history for this group.</div>
+          </div>
+        </button>
+
+        <!-- Option 2: Clear Settlements Only -->
+        <button type="button" id="btn-action-clear-settlements" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">💳</div>
+          <div>
+            <div style="font-weight: 700; color: #f59e0b; font-size: 0.95rem;">Clear Settlements Only</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Wipe payment settlement history while keeping all bill expenses intact.</div>
+          </div>
+        </button>
+
+        <!-- Option 3: Batch Select Specific Records -->
+        <button type="button" id="btn-action-batch-select" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">☑️</div>
+          <div>
+            <div style="font-weight: 700; color: var(--primary-color); font-size: 0.95rem;">Select & Clear Specific Records</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Turn on selection checkboxes on the expenses list to pick specific items and delete them in bulk.</div>
+          </div>
+        </button>
+      </div>
+
+      <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('reset-records-dialog').close()">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Floating Batch Selection Action Bar -->
+  <div id="batch-action-bar" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 440px; z-index: 9999; padding: 0.85rem 1.25rem; border-color: var(--primary-color); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); align-items: center; justify-content: space-between; border-radius: 30px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(20px);">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.1rem;">☑️</span>
+      <span id="batch-selected-count" style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">0 Selected</span>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <button type="button" id="btn-cancel-batch" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-radius: 20px;">Cancel</button>
+      <button type="button" id="btn-delete-selected-batch" class="btn btn-danger" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-radius: 20px; font-weight: 700;">Delete Selected</button>
+    </div>
+  </div>
 
   <!-- iOS PWA Install Prompt -->
   <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">

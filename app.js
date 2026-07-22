@@ -251,6 +251,8 @@ class SataSplitApp {
     this.activeFilterPill = "all";
     this.rateCache = {};
     this.attachedReceiptBase64 = "";
+    this.isBatchSelectionMode = false;
+    this.selectedExpenseIds = new Set();
     
     this.init();
   }
@@ -325,6 +327,7 @@ class SataSplitApp {
         
         // Reset filters when switching groups
         this.activeFilterPill = "all";
+        this.exitBatchSelectionMode();
         const filterPills = document.querySelectorAll(".filter-pill");
         filterPills.forEach(p => {
           if (p.getAttribute("data-filter") === "all") {
@@ -846,7 +849,8 @@ class SataSplitApp {
 
     filtered.forEach(exp => {
       const card = document.createElement("div");
-      card.className = "expense-card";
+      const isSelected = this.selectedExpenseIds.has(exp.id);
+      card.className = `expense-card ${this.isBatchSelectionMode ? "batch-selectable" : ""} ${isSelected ? "batch-selected" : ""}`;
       
       const meta = categoryMeta[exp.category] || categoryMeta.other;
       const dateObj = new Date(exp.date);
@@ -897,6 +901,11 @@ class SataSplitApp {
       }
 
       card.innerHTML = `
+        ${this.isBatchSelectionMode ? `
+          <div style="display: flex; align-items: center; padding-right: 0.5rem;">
+            <input type="checkbox" class="expense-batch-checkbox" data-id="${exp.id}" ${isSelected ? "checked" : ""}>
+          </div>
+        ` : ""}
         <div class="expense-info">
           <div class="category-icon" style="background-color: ${meta.bg}; color: ${meta.color};">${meta.icon}</div>
           <div class="expense-text">
@@ -921,25 +930,35 @@ class SataSplitApp {
             <div style="font-weight: 700;">${shareText}</div>
           </div>
           
-          <div class="expense-actions">
-            <button class="action-btn-sm btn-edit-expense" data-id="${exp.id}" title="Edit Expense">✏️</button>
-            <button class="action-btn-sm btn-delete-expense" data-id="${exp.id}" title="Delete Expense">🗑️</button>
-          </div>
+          ${!this.isBatchSelectionMode ? `
+            <div class="expense-actions">
+              <button class="action-btn-sm btn-edit-expense" data-id="${exp.id}" title="Edit Expense">✏️</button>
+              <button class="action-btn-sm btn-delete-expense" data-id="${exp.id}" title="Delete Expense">🗑️</button>
+            </div>
+          ` : ""}
         </div>
       `;
 
-      // Event handlers for actions
-      card.querySelector(".btn-edit-expense").addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.openExpenseForm(exp);
-      });
-
-      card.querySelector(".btn-delete-expense").addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (confirm(`Delete the expense "${exp.description}"?`)) {
-          this.deleteExpense(exp.id);
+      if (!this.isBatchSelectionMode) {
+        // Event handlers for actions
+        const btnEdit = card.querySelector(".btn-edit-expense");
+        if (btnEdit) {
+          btnEdit.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.openExpenseForm(exp);
+          });
         }
-      });
+
+        const btnDel = card.querySelector(".btn-delete-expense");
+        if (btnDel) {
+          btnDel.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete the expense "${exp.description}"?`)) {
+              this.deleteExpense(exp.id);
+            }
+          });
+        }
+      }
 
       if (exp.hasReceipt) {
         const btnView = card.querySelector(".btn-view-receipt");
@@ -971,10 +990,26 @@ class SataSplitApp {
         }
       }
       
-      // Clicking the card opens detail log
-      card.addEventListener("click", () => {
-        this.openExpenseForm(exp);
-      });
+      // Card click handling
+      if (this.isBatchSelectionMode) {
+        card.addEventListener("click", () => {
+          this.vibrate(10);
+          if (this.selectedExpenseIds.has(exp.id)) {
+            this.selectedExpenseIds.delete(exp.id);
+            card.classList.remove("batch-selected");
+          } else {
+            this.selectedExpenseIds.add(exp.id);
+            card.classList.add("batch-selected");
+          }
+          const chk = card.querySelector(".expense-batch-checkbox");
+          if (chk) chk.checked = this.selectedExpenseIds.has(exp.id);
+          this.updateBatchSelectionCount();
+        });
+      } else {
+        card.addEventListener("click", () => {
+          this.openExpenseForm(exp);
+        });
+      }
 
       container.appendChild(card);
     });
@@ -1908,6 +1943,115 @@ class SataSplitApp {
     }
   }
 
+  async resetAllGroupRecords() {
+    if (!this.activeGroup) return;
+    const groupName = this.activeGroup.name;
+
+    if (!confirm(`ARE YOU ABSOLUTELY SURE?\n\nThis will permanently delete ALL expenses, settlements, receipt photos, and activity history for "${groupName}".\n\nMembers list and group settings will be kept. This action cannot be undone.`)) {
+      return;
+    }
+
+    // Delete all attached receipt subcollection documents
+    if (this.activeGroup.receiptList && this.activeGroup.receiptList.length > 0) {
+      for (const item of this.activeGroup.receiptList) {
+        await this.deleteReceiptImage(item.expenseId);
+      }
+    }
+
+    this.activeGroup.expenses = [];
+    this.activeGroup.settlements = [];
+    this.activeGroup.activities = [];
+    this.activeGroup.receiptList = [];
+
+    this.logActivity(`reset all group transaction records`, false);
+    await this.triggerStateSave();
+    
+    this.exitBatchSelectionMode();
+    this.showToast(`All records for "${groupName}" have been reset!`, "success");
+    
+    const dialog = document.getElementById("reset-records-dialog");
+    if (dialog) dialog.close();
+    const groupDialog = document.getElementById("group-dialog");
+    if (groupDialog) groupDialog.close();
+  }
+
+  async clearSettlementsOnly() {
+    if (!this.activeGroup) return;
+    if (!this.activeGroup.settlements || this.activeGroup.settlements.length === 0) {
+      this.showToast("No settlements to clear!", "info");
+      return;
+    }
+
+    if (!confirm("Clear all settled payment records? Bill expenses will remain untouched.")) {
+      return;
+    }
+
+    this.activeGroup.settlements = [];
+    this.logActivity("cleared all payment settlements history", false);
+    await this.triggerStateSave();
+    this.showToast("Settlement records cleared!", "success");
+
+    const dialog = document.getElementById("reset-records-dialog");
+    if (dialog) dialog.close();
+  }
+
+  toggleBatchSelectionMode(enabled) {
+    this.isBatchSelectionMode = enabled;
+    this.selectedExpenseIds.clear();
+    
+    const bar = document.getElementById("batch-action-bar");
+    if (bar) {
+      bar.style.display = enabled ? "flex" : "none";
+    }
+    
+    this.updateBatchSelectionCount();
+    this.renderDashboard();
+    
+    const dialog = document.getElementById("reset-records-dialog");
+    if (dialog && enabled) dialog.close();
+  }
+
+  exitBatchSelectionMode() {
+    this.toggleBatchSelectionMode(false);
+  }
+
+  updateBatchSelectionCount() {
+    const countSpan = document.getElementById("batch-selected-count");
+    if (countSpan) {
+      countSpan.textContent = `${this.selectedExpenseIds.size} Selected`;
+    }
+  }
+
+  async deleteSelectedExpenses() {
+    if (this.selectedExpenseIds.size === 0) {
+      this.showToast("No expenses selected!", "warning");
+      return;
+    }
+
+    const count = this.selectedExpenseIds.size;
+    if (!confirm(`Delete the ${count} selected expense(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    for (const id of this.selectedExpenseIds) {
+      const exp = this.activeGroup.expenses.find(e => e.id === id);
+      if (exp && exp.hasReceipt) {
+        await this.deleteReceiptImage(id);
+      }
+    }
+
+    this.activeGroup.expenses = this.activeGroup.expenses.filter(e => !this.selectedExpenseIds.has(e.id));
+    if (this.activeGroup.receiptList) {
+      this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => !this.selectedExpenseIds.has(item.expenseId));
+    }
+
+    this.logActivity(`deleted ${count} selected expense(s) in bulk`, false);
+    await this.triggerStateSave();
+    this.showToast(`Deleted ${count} expense(s).`, "success");
+
+    this.exitBatchSelectionMode();
+  }
+
   // --- Event Listeners Binder ---
 
   setupEventListeners() {
@@ -2000,6 +2144,50 @@ class SataSplitApp {
     const btnExport = document.getElementById("btn-export-ledger");
     if (btnExport) {
       btnExport.addEventListener("click", () => this.exportLedgerToCSV());
+    }
+
+    // Reset / Purge Records Modal & Actions
+    const btnOpenReset = document.getElementById("btn-open-reset-dialog");
+    if (btnOpenReset) {
+      btnOpenReset.addEventListener("click", () => {
+        this.vibrate(10);
+        const modal = document.getElementById("reset-records-dialog");
+        if (modal) modal.showModal();
+      });
+    }
+
+    const btnResetInGroupModal = document.getElementById("btn-reset-group-records");
+    if (btnResetInGroupModal) {
+      btnResetInGroupModal.addEventListener("click", () => {
+        this.vibrate(10);
+        const modal = document.getElementById("reset-records-dialog");
+        if (modal) modal.showModal();
+      });
+    }
+
+    const btnResetAll = document.getElementById("btn-action-reset-all");
+    if (btnResetAll) {
+      btnResetAll.addEventListener("click", () => this.resetAllGroupRecords());
+    }
+
+    const btnClearSettlements = document.getElementById("btn-action-clear-settlements");
+    if (btnClearSettlements) {
+      btnClearSettlements.addEventListener("click", () => this.clearSettlementsOnly());
+    }
+
+    const btnBatchSelect = document.getElementById("btn-action-batch-select");
+    if (btnBatchSelect) {
+      btnBatchSelect.addEventListener("click", () => this.toggleBatchSelectionMode(true));
+    }
+
+    const btnCancelBatch = document.getElementById("btn-cancel-batch");
+    if (btnCancelBatch) {
+      btnCancelBatch.addEventListener("click", () => this.exitBatchSelectionMode());
+    }
+
+    const btnDeleteBatch = document.getElementById("btn-delete-selected-batch");
+    if (btnDeleteBatch) {
+      btnDeleteBatch.addEventListener("click", () => this.deleteSelectedExpenses());
     }
 
     // Quick Filter Pills Event Listeners
