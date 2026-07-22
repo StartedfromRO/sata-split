@@ -24,101 +24,101 @@
   <div class="liquid-blob blob-2"></div>
   <div class="liquid-blob blob-3"></div>
   
-  <div class="app-container">
-    
-    <!-- Top Header -->
-    <header class="glass-panel animate-fade-in">
-      <div class="logo-section">
-        <img class="logo-img" src="logo.jpg" alt="SATA Logo">
-        <div>
-          <h1 class="logo-text">SATA Split</h1>
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Pay what you owe fool!</span>
-        </div>
-      </div>
+  <!-- Smartphone Centered Wrapper -->
+  <div class="app-phone-wrapper">
+    <div class="app-container">
       
-      <div class="controls-section">
-        <!-- Group Selector -->
-        <div class="select-wrapper">
-          <select id="group-select" class="select-input" aria-label="Select Group">
-            <!-- Dynamically populated -->
-          </select>
+      <!-- Top Header -->
+      <header class="glass-panel animate-fade-in">
+        <div class="logo-section">
+          <img class="logo-img" src="logo.jpg" alt="SATA Logo">
+          <div>
+            <h1 class="logo-text">SATA Split</h1>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Pay what you owe fool!</span>
+          </div>
         </div>
         
-        <!-- Current User Selector -->
-        <div class="select-wrapper">
-          <select id="user-select" class="select-input" aria-label="Select Active User (You)">
-            <!-- Dynamically populated -->
-          </select>
+        <div class="controls-section">
+          <!-- Group Selector -->
+          <div class="select-wrapper">
+            <select id="group-select" class="select-input" aria-label="Select Group">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          
+          <!-- Current User Selector -->
+          <div class="select-wrapper">
+            <select id="user-select" class="select-input" aria-label="Select Active User (You)">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          
+          <!-- Cloud Sync Badge -->
+          <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
+            <span class="dot"></span>
+            <span class="label">Local Mode</span>
+          </button>
+          
+          <!-- Theme Toggle -->
+          <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
+            <svg class="sun-icon" style="display: none;" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5"></circle>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+            </svg>
+            <svg class="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          
+          <!-- Changelog Button -->
+          <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
+            📜
+          </button>
+          
+          <!-- API Settings Button -->
+          <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
+            ⚙️
+          </button>
         </div>
-        
-        <!-- Cloud Sync Badge -->
-        <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
-          <span class="dot"></span>
-          <span class="label">Local Mode</span>
-        </button>
-        
-        <!-- Theme Toggle -->
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
-          <svg class="sun-icon" style="display: none;" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="5"></circle>
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
-          </svg>
-          <svg class="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
-        
-        <!-- Changelog Button -->
-        <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
-          📜
-        </button>
-        
-        <!-- API Settings Button -->
-        <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
-          ⚙️
-        </button>
-      </div>
-    </header>
+      </header>
 
-    <!-- Stats Banner -->
-    <section class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
-      <div class="glass-panel stat-card total">
-        <div class="stat-label">Total Group Spend</div>
-        <div id="stat-total-spend" class="stat-value">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card owed">
-        <div class="stat-label">You Are Owed</div>
-        <div id="stat-you-are-owed" class="stat-value success">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card owe">
-        <div class="stat-label">You Owe</div>
-        <div id="stat-you-owe" class="stat-value danger">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card net">
-        <div class="stat-label">Your Net Balance</div>
-        <div id="stat-net-balance" class="stat-value">$0.00</div>
-      </div>
-    </section>
+      <!-- Desktop Nav Tab Bar (for wide screens) -->
+      <nav class="tabs-header">
+        <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
+        <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
+        <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
+        <button id="tab-btn-notes" class="tab-btn">Notes Wall</button>
+        <button id="tab-btn-manage" class="tab-btn">Manage Group</button>
+      </nav>
 
-    <!-- Dashboard Body -->
-    <main class="dashboard-grid">
-      
-      <!-- Main Content Column -->
-      <section class="glass-panel animate-fade-in" style="animation-delay: 0.2s;">
-        <!-- Tabs Header -->
-        <nav class="tabs-header">
-          <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
-          <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
-          <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
-          <button id="tab-btn-notes" class="tab-btn">Notes Wall</button>
-          <button id="tab-btn-manage" class="tab-btn">Manage Group</button>
-        </nav>
+      <!-- Screen Router Area -->
+      <main class="app-screen-body">
         
         <!-- Tab Content: Expenses -->
         <div id="tab-content-expenses" class="tab-content active">
+          <!-- Stats Banner -->
+          <section class="stats-grid animate-fade-in" style="margin-bottom: 1.25rem;">
+            <div class="glass-panel stat-card total">
+              <div class="stat-label">Total Group Spend</div>
+              <div id="stat-total-spend" class="stat-value">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card owed">
+              <div class="stat-label">You Are Owed</div>
+              <div id="stat-you-are-owed" class="stat-value success">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card owe">
+              <div class="stat-label">You Owe</div>
+              <div id="stat-you-owe" class="stat-value danger">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card net">
+              <div class="stat-label">Your Net Balance</div>
+              <div id="stat-net-balance" class="stat-value">$0.00</div>
+            </div>
+          </section>
+
           <div class="filters-bar">
             <!-- Search -->
             <div class="search-input-wrapper">
@@ -281,10 +281,35 @@
           <div class="activity-section">
             <h3 style="margin-bottom: 0.5rem; color: var(--primary-color); margin-top: 0;">⚙️ Manage Group Settings</h3>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
-              Update group details, manage member list, or purge group records.
+              Update group details, manage member list, view share link, or purge group records.
             </p>
             
-            <form id="page-group-form" style="display: flex; flex-direction: column; gap: 1.25rem; max-width: 600px;">
+            <!-- Group Members Display Panel -->
+            <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1.25rem; border-color: rgba(99, 102, 241, 0.2);">
+              <div class="sidebar-title-row" style="margin-bottom: 0.75rem;">
+                <h4 style="margin: 0; color: var(--text-primary); font-size: 1rem;">👥 Group Members List</h4>
+              </div>
+              <div id="sidebar-members-list" class="members-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Share Link Panel -->
+            <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1.25rem; border-color: rgba(99, 102, 241, 0.2);">
+              <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1rem;">🔗 Share Group with Friends</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                Send this link to group members so they can view, add, and sync expenses with you!
+              </p>
+              <div class="share-card-input-group">
+                <span id="share-url-text" class="share-url-input">Loading link...</span>
+                <button id="btn-copy-share-url" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" title="Copy to Clipboard">
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <!-- Group Form -->
+            <form id="page-group-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
               <!-- Group Name -->
               <div class="form-group">
                 <label for="page-group-name-input" style="font-weight: 600;">Group Name</label>
@@ -308,7 +333,7 @@
               
               <!-- Manage Members -->
               <div class="form-group">
-                <label style="font-weight: 600;">Group Members</label>
+                <label style="font-weight: 600;">Edit Group Members</label>
                 <div id="page-group-members-list" class="split-members-container" style="max-height: 200px; margin-top: 0.5rem;">
                   <!-- Dynamically populated member names with remove buttons -->
                 </div>
@@ -340,44 +365,9 @@
             </form>
           </div>
         </div>
-      </section>
+      </main>
       
-      <!-- Sidebar Column -->
-      <aside class="sidebar-panel">
-        
-        <!-- Members List Panel -->
-        <div class="glass-panel animate-fade-in" style="animation-delay: 0.3s;">
-          <div class="sidebar-title-row">
-            <h3>Group Members</h3>
-            <button id="btn-open-group-dialog" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
-              Manage Group
-            </button>
-          </div>
-          <div id="sidebar-members-list" class="members-list">
-            <!-- Dynamically populated -->
-          </div>
-        </div>
-        
-        <!-- Share Link Panel -->
-        <div class="glass-panel animate-fade-in" style="animation-delay: 0.4s;">
-          <h3>Share with Friends</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">
-            Send this link to group members so they can view, add, and sync expenses with you!
-          </p>
-          <div class="share-card-input-group">
-            <span id="share-url-text" class="share-url-input">Loading link...</span>
-            <button id="btn-copy-share-url" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" title="Copy to Clipboard">
-              Copy
-            </button>
-          </div>
-        </div>
-        
-        <!-- Info Helper Panel removed (Quick Actions) -->
-        
-      </aside>
-      
-    </main>
-    
+    </div>
   </div>
 
   <!-- Toast Container -->
