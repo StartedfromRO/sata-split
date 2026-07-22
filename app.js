@@ -337,12 +337,15 @@ class SataSplitApp {
           }
         });
         
-        // Ensure currentUser is still in the group, otherwise fallback to first member
+        // Ensure currentUser is preserved and not overwritten on cloud snapshots
         const savedName = localStorage.getItem("fairshare_my_name");
-        if (savedName && this.activeGroup.members.includes(savedName)) {
+        if (this.currentUser && this.activeGroup.members.includes(this.currentUser)) {
+          localStorage.setItem("fairshare_my_name", this.currentUser);
+        } else if (savedName && this.activeGroup.members.includes(savedName)) {
           this.currentUser = savedName;
-        } else if (!this.activeGroup.members.includes(this.currentUser)) {
-          this.currentUser = this.activeGroup.members[0] || "Ban";
+        } else if (this.activeGroup.members.length > 0) {
+          this.currentUser = this.activeGroup.members[0];
+          localStorage.setItem("fairshare_my_name", this.currentUser);
         }
         
         this.updateGroupSelects();
@@ -2178,11 +2181,17 @@ class SataSplitApp {
     });
 
     // 2. Active User Selector
-    document.getElementById("user-select").addEventListener("change", (e) => {
-      this.currentUser = e.target.value;
-      localStorage.setItem("fairshare_my_name", e.target.value);
-      this.renderDashboard();
-    });
+    const userSelect = document.getElementById("user-select");
+    if (userSelect) {
+      userSelect.addEventListener("change", (e) => {
+        const chosen = e.target.value;
+        if (!chosen) return;
+        this.currentUser = chosen;
+        localStorage.setItem("fairshare_my_name", chosen);
+        this.updateGroupSelects();
+        this.renderDashboard();
+      });
+    }
 
     // 3. Theme Toggle
     document.getElementById("theme-toggle").addEventListener("click", () => {
