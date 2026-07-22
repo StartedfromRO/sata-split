@@ -338,15 +338,14 @@ class SataSplitApp {
           }
         });
         
-        // Ensure currentUser is preserved and not overwritten on cloud snapshots
+        // Ensure currentUser is preserved and not auto-assigned if unauthenticated
         const savedName = localStorage.getItem("fairshare_my_name");
-        if (this.currentUser && this.activeGroup.members.includes(this.currentUser)) {
-          localStorage.setItem("fairshare_my_name", this.currentUser);
-        } else if (savedName && this.activeGroup.members.includes(savedName)) {
+        if (savedName && this.activeGroup.members.includes(savedName)) {
           this.currentUser = savedName;
-        } else if (this.activeGroup.members.length > 0) {
-          this.currentUser = this.activeGroup.members[0];
+        } else if (this.currentUser && this.activeGroup.members.includes(this.currentUser)) {
           localStorage.setItem("fairshare_my_name", this.currentUser);
+        } else {
+          this.currentUser = "";
         }
         
         this.updateGroupSelects();
