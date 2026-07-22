@@ -1501,8 +1501,27 @@ body.light-theme .filter-pill.active {
   border-color: var(--primary-color);
 }
 
-/* Exclude Lightbox Dialog from center sizing and override to take full viewport */
-#receipt-lightbox-dialog {
+/* Ensure closed dialogs are completely hidden and never capture clicks */
+dialog:not([open]),
+#receipt-lightbox-dialog:not([open]),
+#reset-records-dialog:not([open]),
+#expense-dialog:not([open]),
+#settle-dialog:not([open]),
+#member-bank-dialog:not([open]),
+#group-dialog:not([open]),
+#cloud-setup-dialog:not([open]),
+#api-key-dialog:not([open]),
+#changelog-dialog:not([open]),
+#onboarding-dialog:not([open]) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Exclude Lightbox Dialog from center sizing and override to take full viewport when open */
+#receipt-lightbox-dialog[open] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   width: 100vw !important;
   height: 100vh !important;
   max-width: 100vw !important;
@@ -1515,16 +1534,6 @@ body.light-theme .filter-pill.active {
   border: none !important;
   background: rgba(15, 23, 42, 0.96) !important;
   box-shadow: none !important;
-}
-
-#receipt-lightbox-dialog[open] {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-/* Lightbox Fade-in */
-#receipt-lightbox-dialog {
   animation: lightbox-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -1597,28 +1606,9 @@ body.light-theme .filter-pill.active {
 
 /* Mobile Viewport Styles (max-width: 767px) */
 @media (max-width: 767px) {
-  html, body {
-    height: 100dvh;
-    height: 100vh;
-    overflow: hidden;
+  body {
+    padding-bottom: 4.5rem;
     overscroll-behavior-y: none;
-    touch-action: manipulation;
-  }
-
-  .app-container {
-    height: 100dvh;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem 0.5rem 4.5rem 0.5rem;
-    box-sizing: border-box;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Hide top desktop tab header on phone, use mobile bottom nav */
-  .tabs-header {
-    display: none !important;
   }
 
   /* Fixed Glassmorphic Mobile Bottom Navigation Bar */
@@ -1629,7 +1619,7 @@ body.light-theme .filter-pill.active {
     left: 0;
     right: 0;
     height: 3.75rem;
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
