@@ -243,7 +243,7 @@ class SataSplitApp {
   constructor() {
     this.storage = new LocalStorageAdapter(); // Default
     this.activeGroup = null;
-    this.currentUser = localStorage.getItem("fairshare_my_name") || "Ban";
+    this.currentUser = localStorage.getItem("fairshare_my_name") || "";
     this.activeTab = "expenses";
     this.unsubscribeActiveListener = null;
     this.lastDeletedItem = null;
