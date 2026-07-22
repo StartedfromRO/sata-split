@@ -1951,10 +1951,14 @@ class SataSplitApp {
       return;
     }
 
-    // Delete all attached receipt subcollection documents
+    // Delete all attached receipt subcollection documents safely
     if (this.activeGroup.receiptList && this.activeGroup.receiptList.length > 0) {
       for (const item of this.activeGroup.receiptList) {
-        await this.deleteReceiptImage(item.expenseId);
+        try {
+          await this.deleteReceiptImage(item.expenseId);
+        } catch (e) {
+          console.warn("Receipt subdoc cleanup skipped:", e);
+        }
       }
     }
 
