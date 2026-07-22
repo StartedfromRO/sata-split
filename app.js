@@ -268,48 +268,48 @@ class SataSplitApp {
       this.updateThemeIcons(false);
     }
 
-    // 2. Firebase check
+    // 2. Bind UI event listeners & install prompt immediately
+    this.setupEventListeners();
+    this.checkIosInstallPrompt();
+
+    // 3. Determine group to load synchronously
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlGroupId = urlParams.get("groupId");
+    const lastGroup = localStorage.getItem("fairshare_last_active_group");
+    const groupToLoad = urlGroupId || lastGroup || "default-group";
+
+    // 4. Instant initial render from LocalStorage (<50ms startup speed)
+    const localGroups = JSON.parse(localStorage.getItem("fairshare_groups") || "{}");
+    if (localGroups[groupToLoad]) {
+      this.activeGroup = localGroups[groupToLoad];
+      this.updateGroupSelects();
+      this.renderDashboard();
+      this.checkOnboarding();
+    }
+
+    // 5. Connect to Cloud (Firebase/Firestore) in background asynchronously
     const firebaseConfig = window.FIREBASE_CONFIG;
     const hasConfig = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
     
     if (hasConfig) {
-      const success = await initFirebase(firebaseConfig);
-      if (success) {
-        this.storage = new FirestoreAdapter(firestoreDb);
-        const badge = document.getElementById("sync-status-badge");
-        badge.className = "sync-badge cloud";
-        badge.querySelector(".label").textContent = "Cloud Synced";
-      } else {
-        this.showToast("Failed to connect to Firebase. Running in Offline Local Mode.", "error");
-      }
-    }
-
-    // 3. Load active group (check URL params first)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlGroupId = urlParams.get("groupId");
-    
-    let groupToLoad = "default-group";
-    if (urlGroupId) {
-      const groupExists = await this.storage.getGroup(urlGroupId);
-      if (groupExists) {
-        groupToLoad = urlGroupId;
-      } else {
-        this.showToast("Shared group not found. Loading local default.", "error");
-        // Clean URL parameter if group doesn't exist
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+      initFirebase(firebaseConfig).then((success) => {
+        if (success) {
+          this.storage = new FirestoreAdapter(firestoreDb);
+          const badge = document.getElementById("sync-status-badge");
+          if (badge) {
+            badge.className = "sync-badge cloud";
+            badge.querySelector(".label").textContent = "Cloud Synced";
+          }
+          this.switchGroup(groupToLoad);
+        } else {
+          this.switchGroup(groupToLoad);
+        }
+      }).catch(() => {
+        this.switchGroup(groupToLoad);
+      });
     } else {
-      // Load last active group from localStorage
-      const lastGroup = localStorage.getItem("fairshare_last_active_group");
-      if (lastGroup) {
-        const groupExists = await this.storage.getGroup(lastGroup);
-        if (groupExists) groupToLoad = lastGroup;
-      }
+      this.switchGroup(groupToLoad);
     }
-
-    this.switchGroup(groupToLoad);
-    this.setupEventListeners();
-    this.checkIosInstallPrompt();
   }
 
   // --- Real-time state syncing ---
