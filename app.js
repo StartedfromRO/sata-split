@@ -267,7 +267,7 @@ class SataSplitApp {
     
     if (hasConfig) {
       try {
-        const success = await initFirebase(firebaseConfig);
+        const success = initFirebase(firebaseConfig);
         if (success && firestoreDb) {
           this.storage = new FirestoreAdapter(firestoreDb);
           const badge = document.getElementById("sync-status-badge");
@@ -275,6 +275,8 @@ class SataSplitApp {
             badge.className = "sync-badge cloud";
             badge.querySelector(".label").textContent = "Cloud Synced";
           }
+        } else {
+          console.warn("initFirebase returned false. Running in Local Mode.");
         }
       } catch (err) {
         console.warn("Cloud connection error, running in Local Mode:", err);
