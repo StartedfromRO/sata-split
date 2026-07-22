@@ -2065,18 +2065,21 @@ class SataSplitApp {
     const tabBalances = document.getElementById("tab-btn-balances");
     const tabActivity = document.getElementById("tab-btn-activity");
     const tabNotes = document.getElementById("tab-btn-notes");
+    const tabManage = document.getElementById("tab-btn-manage");
     
     // Tab Contents
     const contentExpenses = document.getElementById("tab-content-expenses");
     const contentBalances = document.getElementById("tab-content-balances");
     const contentActivity = document.getElementById("tab-content-activity");
     const contentNotes = document.getElementById("tab-content-notes");
+    const contentManage = document.getElementById("tab-content-manage");
 
     const tabsMap = {
       expenses: { btn: tabExpenses, content: contentExpenses },
       balances: { btn: tabBalances, content: contentBalances },
       activity: { btn: tabActivity, content: contentActivity },
-      notes: { btn: tabNotes, content: contentNotes }
+      notes: { btn: tabNotes, content: contentNotes },
+      manage: { btn: tabManage, content: contentManage }
     };
 
     Object.keys(tabsMap).forEach(key => {
@@ -2104,7 +2107,61 @@ class SataSplitApp {
       this.renderActivityFeed();
     } else if (tabName === "notes") {
       this.renderNotesWall();
+    } else if (tabName === "manage") {
+      this.populatePageGroupSettings();
     }
+  }
+
+  populatePageGroupSettings() {
+    const nameInput = document.getElementById("page-group-name-input");
+    const currencySelect = document.getElementById("page-group-currency-input");
+    const list = document.getElementById("page-group-members-list");
+
+    if (!nameInput || !currencySelect || !list || !this.activeGroup) return;
+
+    nameInput.value = this.activeGroup.name;
+    currencySelect.value = this.activeGroup.currency;
+    
+    list.innerHTML = "";
+    
+    // Check which members are referenced in expenses or settlements
+    const lockedMembers = new Set();
+    if (this.activeGroup.expenses) {
+      this.activeGroup.expenses.forEach(e => {
+        lockedMembers.add(e.paidBy);
+        if (e.splits) Object.keys(e.splits).forEach(m => lockedMembers.add(m));
+      });
+    }
+    if (this.activeGroup.settlements) {
+      this.activeGroup.settlements.forEach(s => {
+        lockedMembers.add(s.payer);
+        lockedMembers.add(s.recipient);
+      });
+    }
+
+    this.activeGroup.members.forEach(m => {
+      const row = document.createElement("div");
+      row.className = "split-member-row";
+      
+      const isLocked = lockedMembers.has(m);
+      const actionHtml = isLocked 
+        ? `<span style="font-size:0.75rem; color:var(--text-muted);">locked (has bills)</span>`
+        : `<button type="button" class="action-btn-sm btn-remove-member-page" data-member="${m}" style="color:var(--danger-color);">Remove</button>`;
+
+      row.innerHTML = `
+        <div style="font-weight: 500;">${m}</div>
+        <div>${actionHtml}</div>
+      `;
+
+      if (!isLocked) {
+        row.querySelector(".btn-remove-member-page").addEventListener("click", () => {
+          this.activeGroup.members = this.activeGroup.members.filter(mem => mem !== m);
+          this.populatePageGroupSettings();
+        });
+      }
+
+      list.appendChild(row);
+    });
   }
 
   openGroupSettingsModal() {
@@ -2140,10 +2197,13 @@ class SataSplitApp {
     const tabActivity = document.getElementById("tab-btn-activity");
     const tabNotes = document.getElementById("tab-btn-notes");
 
+    const tabManage = document.getElementById("tab-btn-manage");
+
     if (tabExpenses) tabExpenses.addEventListener("click", () => this.switchTab("expenses"));
     if (tabBalances) tabBalances.addEventListener("click", () => this.switchTab("balances"));
     if (tabActivity) tabActivity.addEventListener("click", () => this.switchTab("activity"));
     if (tabNotes) tabNotes.addEventListener("click", () => this.switchTab("notes"));
+    if (tabManage) tabManage.addEventListener("click", () => this.switchTab("manage"));
 
     // Mobile Bottom Navigation items
     document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navBtn => {
@@ -2157,8 +2217,63 @@ class SataSplitApp {
     if (bnavManage) {
       bnavManage.addEventListener("click", () => {
         this.vibrate(10);
-        this.openGroupSettingsModal();
+        this.switchTab("manage");
       });
+    }
+
+    // Page Manage Group Form Submit
+    const pageGroupForm = document.getElementById("page-group-form");
+    if (pageGroupForm) {
+      pageGroupForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const newName = document.getElementById("page-group-name-input").value.trim();
+        const newCurrency = document.getElementById("page-group-currency-input").value;
+        if (!newName) return;
+
+        this.activeGroup.name = newName;
+        this.activeGroup.currency = newCurrency;
+        this.logActivity(`updated group name to "${newName}" (${newCurrency})`, false);
+        await this.triggerStateSave();
+        this.renderDashboard();
+        this.showToast("Group settings saved!", "success");
+      });
+    }
+
+    // Page Add Member button
+    const pageBtnAddMember = document.getElementById("page-btn-add-member-item");
+    if (pageBtnAddMember) {
+      pageBtnAddMember.addEventListener("click", () => {
+        const input = document.getElementById("page-new-member-name");
+        const name = input ? input.value.trim() : "";
+        if (!name) return;
+        if (this.activeGroup.members.includes(name)) {
+          this.showToast(`"${name}" is already in the group!`, "warning");
+          return;
+        }
+        this.activeGroup.members.push(name);
+        if (input) input.value = "";
+        this.populatePageGroupSettings();
+      });
+    }
+
+    // Page Group Actions
+    const pageBtnCreate = document.getElementById("page-btn-create-new-group");
+    if (pageBtnCreate) {
+      pageBtnCreate.addEventListener("click", () => this.createNewGroup());
+    }
+
+    const pageBtnReset = document.getElementById("page-btn-reset-group-records");
+    if (pageBtnReset) {
+      pageBtnReset.addEventListener("click", () => {
+        this.vibrate(10);
+        const modal = document.getElementById("reset-records-dialog");
+        if (modal) modal.showModal();
+      });
+    }
+
+    const pageBtnDelete = document.getElementById("page-btn-delete-active-group");
+    if (pageBtnDelete) {
+      pageBtnDelete.addEventListener("click", () => this.deleteActiveGroup());
     }
 
     // Mobile FAB Add Expense Button
