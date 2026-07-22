@@ -278,38 +278,28 @@ class SataSplitApp {
     const lastGroup = localStorage.getItem("fairshare_last_active_group");
     const groupToLoad = urlGroupId || lastGroup || "default-group";
 
-    // 4. Instant initial render from LocalStorage (<50ms startup speed)
-    const localGroups = JSON.parse(localStorage.getItem("fairshare_groups") || "{}");
-    if (localGroups[groupToLoad]) {
-      this.activeGroup = localGroups[groupToLoad];
-      this.updateGroupSelects();
-      this.renderDashboard();
-      this.checkOnboarding();
-    }
-
-    // 5. Connect to Cloud (Firebase/Firestore) in background asynchronously
+    // 4. Firebase check & Cloud Adapter Setup
     const firebaseConfig = window.FIREBASE_CONFIG;
     const hasConfig = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
     
     if (hasConfig) {
-      initFirebase(firebaseConfig).then((success) => {
-        if (success) {
+      try {
+        const success = await initFirebase(firebaseConfig);
+        if (success && firestoreDb) {
           this.storage = new FirestoreAdapter(firestoreDb);
           const badge = document.getElementById("sync-status-badge");
           if (badge) {
             badge.className = "sync-badge cloud";
             badge.querySelector(".label").textContent = "Cloud Synced";
           }
-          this.switchGroup(groupToLoad);
-        } else {
-          this.switchGroup(groupToLoad);
         }
-      }).catch(() => {
-        this.switchGroup(groupToLoad);
-      });
-    } else {
-      this.switchGroup(groupToLoad);
+      } catch (err) {
+        console.warn("Cloud connection error, running in Local Mode:", err);
+      }
     }
+
+    // 5. Load active group and start real-time listener
+    this.switchGroup(groupToLoad);
   }
 
   // --- Real-time state syncing ---
