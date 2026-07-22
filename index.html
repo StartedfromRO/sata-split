@@ -76,7 +76,7 @@
           </button>
 
           <!-- Install App Button -->
-          <button type="button" id="btn-open-install-prompt" class="theme-toggle-btn" aria-label="Install App" title="Install App to Home Screen" style="font-size: 1.15rem;" onclick="document.getElementById('ios-install-prompt').style.display='flex'">
+          <button type="button" id="btn-open-install-prompt" class="theme-toggle-btn" aria-label="Install App" title="Install App to Home Screen" style="font-size: 1.15rem;" onclick="document.getElementById('ios-install-dialog').showModal()">
             📱
           </button>
 
@@ -1167,15 +1167,30 @@
     </div>
   </div>
 
-  <!-- iOS PWA Install Prompt -->
-  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
-    <div style="font-size: 1.5rem; flex-shrink: 0;">📱</div>
-    <div style="flex: 1; font-size: 0.9rem; line-height: 1.4; color: var(--text-primary);">
-      <div style="font-size: 1.15rem; font-weight: bold; margin-bottom: 0.25rem; color: var(--primary-color);">Install SATA APP!</div>
-      Tap the menu (•••) or Share icon, then select <strong>Add to Home Screen</strong>.
+  <!-- DIALOG: PWA Install App Prompt -->
+  <dialog id="ios-install-dialog">
+    <div class="dialog-card" style="max-width: 400px; text-align: center; padding: 1.5rem;">
+      <div style="font-size: 2.75rem; margin-bottom: 0.25rem;">📱</div>
+      <h3 style="font-size: 1.3rem; color: var(--primary-color); margin-bottom: 0.5rem;">Install SATA APP</h3>
+      <p style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary); margin-bottom: 1rem;">
+        Add SATA Split directly to your phone's Home Screen for a fast, full-screen app experience!
+      </p>
+      
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.85rem; text-align: left; margin-bottom: 1.25rem; font-size: 0.82rem; line-height: 1.4;">
+        <p style="margin-bottom: 0.35rem; color: var(--text-primary);"><strong>On iPhone / iPad (Safari):</strong></p>
+        <p style="color: var(--text-secondary);">Tap the <strong>Share button ( 📤 )</strong>, then select <strong>"Add to Home Screen"</strong>.</p>
+        
+        <hr style="border: none; border-top: 1px solid var(--surface-border); margin: 0.65rem 0;">
+        
+        <p style="margin-bottom: 0.35rem; color: var(--text-primary);"><strong>On Android (Chrome):</strong></p>
+        <p style="color: var(--text-secondary);">Tap the <strong>Menu ( ••• )</strong>, then select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</p>
+      </div>
+
+      <div style="display: flex; justify-content: center; width: 100%;">
+        <button type="button" class="btn btn-primary" style="width: 100%; border-radius: var(--radius-md); padding: 0.75rem; font-weight: 700;" onclick="document.getElementById('ios-install-dialog').close(); localStorage.setItem('ios_pwa_prompt_dismissed', 'true');">Got it!</button>
+      </div>
     </div>
-    <button type="button" id="btn-close-ios-prompt" class="dialog-close-btn" style="position: static; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer;">&times;</button>
-  </div>
+  </dialog>
 
   <!-- Mobile Floating Action Button (FAB) -->
   <button type="button" id="fab-add-expense" class="mobile-fab" title="Add New Expense">

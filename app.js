@@ -3422,17 +3422,13 @@ class SataSplitApp {
     const isDismissed = localStorage.getItem("ios_pwa_prompt_dismissed") === "true";
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    const promptEl = document.getElementById("ios-install-prompt");
-    if (promptEl && isMobile && !isStandalone && !isDismissed) {
-      promptEl.style.display = "flex";
-    }
-
-    const closeBtn = document.getElementById("btn-close-ios-prompt");
-    if (closeBtn && promptEl) {
-      closeBtn.addEventListener("click", () => {
-        promptEl.style.display = "none";
-        localStorage.setItem("ios_pwa_prompt_dismissed", "true");
-      });
+    const dialog = document.getElementById("ios-install-dialog");
+    if (dialog && isMobile && !isStandalone && !isDismissed) {
+      setTimeout(() => {
+        try {
+          if (!dialog.open) dialog.showModal();
+        } catch (e) {}
+      }, 2000);
     }
   }
 

@@ -1564,7 +1564,8 @@ dialog:not([open]),
 #cloud-setup-dialog:not([open]),
 #api-key-dialog:not([open]),
 #changelog-dialog:not([open]),
-#onboarding-dialog:not([open]) {
+#onboarding-dialog:not([open]),
+#ios-install-dialog:not([open]) {
   display: none !important;
   pointer-events: none !important;
 }
