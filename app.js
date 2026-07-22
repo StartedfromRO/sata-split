@@ -2056,6 +2056,62 @@ class SataSplitApp {
     this.exitBatchSelectionMode();
   }
 
+  switchTab(tabName) {
+    this.vibrate(10);
+    this.activeTab = tabName;
+
+    // Desktop Tab Buttons
+    const tabExpenses = document.getElementById("tab-btn-expenses");
+    const tabBalances = document.getElementById("tab-btn-balances");
+    const tabActivity = document.getElementById("tab-btn-activity");
+    const tabNotes = document.getElementById("tab-btn-notes");
+    
+    // Tab Contents
+    const contentExpenses = document.getElementById("tab-content-expenses");
+    const contentBalances = document.getElementById("tab-content-balances");
+    const contentActivity = document.getElementById("tab-content-activity");
+    const contentNotes = document.getElementById("tab-content-notes");
+
+    const tabsMap = {
+      expenses: { btn: tabExpenses, content: contentExpenses },
+      balances: { btn: tabBalances, content: contentBalances },
+      activity: { btn: tabActivity, content: contentActivity },
+      notes: { btn: tabNotes, content: contentNotes }
+    };
+
+    Object.keys(tabsMap).forEach(key => {
+      const item = tabsMap[key];
+      if (item.btn) {
+        if (key === tabName) item.btn.classList.add("active");
+        else item.btn.classList.remove("active");
+      }
+      if (item.content) {
+        if (key === tabName) item.content.classList.add("active");
+        else item.content.classList.remove("active");
+      }
+    });
+
+    // Mobile Bottom Nav Items Sync
+    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navItem => {
+      if (navItem.getAttribute("data-tab") === tabName) {
+        navItem.classList.add("active");
+      } else {
+        navItem.classList.remove("active");
+      }
+    });
+
+    if (tabName === "activity") {
+      this.renderActivityFeed();
+    } else if (tabName === "notes") {
+      this.renderNotesWall();
+    }
+  }
+
+  openGroupSettingsModal() {
+    this.populateGroupSettingsForm();
+    document.getElementById("group-dialog").showModal();
+  }
+
   // --- Event Listeners Binder ---
 
   setupEventListeners() {
@@ -2077,66 +2133,40 @@ class SataSplitApp {
       localStorage.setItem("fairshare_theme", isLight ? "light" : "dark");
       this.updateThemeIcons(isLight);
     });
-
-    // 4. Tab Navigation
+    
+    // 4. Tab Navigation (Desktop & Mobile Nav)
     const tabExpenses = document.getElementById("tab-btn-expenses");
     const tabBalances = document.getElementById("tab-btn-balances");
     const tabActivity = document.getElementById("tab-btn-activity");
     const tabNotes = document.getElementById("tab-btn-notes");
-    const contentExpenses = document.getElementById("tab-content-expenses");
-    const contentBalances = document.getElementById("tab-content-balances");
-    const contentActivity = document.getElementById("tab-content-activity");
-    const contentNotes = document.getElementById("tab-content-notes");
 
-    if (tabExpenses && tabBalances && tabActivity && tabNotes && contentExpenses && contentBalances && contentActivity && contentNotes) {
-      tabExpenses.addEventListener("click", () => {
-        tabExpenses.classList.add("active");
-        tabBalances.classList.remove("active");
-        tabActivity.classList.remove("active");
-        tabNotes.classList.remove("active");
-        contentExpenses.classList.add("active");
-        contentBalances.classList.remove("active");
-        contentActivity.classList.remove("active");
-        contentNotes.classList.remove("active");
-        this.activeTab = "expenses";
+    if (tabExpenses) tabExpenses.addEventListener("click", () => this.switchTab("expenses"));
+    if (tabBalances) tabBalances.addEventListener("click", () => this.switchTab("balances"));
+    if (tabActivity) tabActivity.addEventListener("click", () => this.switchTab("activity"));
+    if (tabNotes) tabNotes.addEventListener("click", () => this.switchTab("notes"));
+
+    // Mobile Bottom Navigation items
+    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navBtn => {
+      navBtn.addEventListener("click", () => {
+        const tab = navBtn.getAttribute("data-tab");
+        this.switchTab(tab);
       });
+    });
 
-      tabBalances.addEventListener("click", () => {
-        tabBalances.classList.add("active");
-        tabExpenses.classList.remove("active");
-        tabActivity.classList.remove("active");
-        tabNotes.classList.remove("active");
-        contentBalances.classList.add("active");
-        contentExpenses.classList.remove("active");
-        contentActivity.classList.remove("active");
-        contentNotes.classList.remove("active");
-        this.activeTab = "balances";
+    const bnavManage = document.getElementById("bnav-manage");
+    if (bnavManage) {
+      bnavManage.addEventListener("click", () => {
+        this.vibrate(10);
+        this.openGroupSettingsModal();
       });
+    }
 
-      tabActivity.addEventListener("click", () => {
-        tabActivity.classList.add("active");
-        tabExpenses.classList.remove("active");
-        tabBalances.classList.remove("active");
-        tabNotes.classList.remove("active");
-        contentActivity.classList.add("active");
-        contentExpenses.classList.remove("active");
-        contentBalances.classList.remove("active");
-        contentNotes.classList.remove("active");
-        this.activeTab = "activity";
-        this.renderActivityFeed();
-      });
-
-      tabNotes.addEventListener("click", () => {
-        tabNotes.classList.add("active");
-        tabExpenses.classList.remove("active");
-        tabBalances.classList.remove("active");
-        tabActivity.classList.remove("active");
-        contentNotes.classList.add("active");
-        contentExpenses.classList.remove("active");
-        contentBalances.classList.remove("active");
-        contentActivity.classList.remove("active");
-        this.activeTab = "notes";
-        this.renderNotesWall();
+    // Mobile FAB Add Expense Button
+    const fabAdd = document.getElementById("fab-add-expense");
+    if (fabAdd) {
+      fabAdd.addEventListener("click", () => {
+        this.vibrate(15);
+        this.openExpenseForm();
       });
     }
 

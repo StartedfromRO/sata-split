@@ -1585,3 +1585,138 @@ body.light-theme .filter-pill.active {
   filter: brightness(1.1);
 }
 
+/* ===============================================================
+   MOBILE NATIVE APP EXPERIENCE (MOBILE-FIRST UI)
+   =============================================================== */
+
+/* Default desktop hidden elements for mobile bottom nav & fab */
+.mobile-bottom-nav,
+.mobile-fab {
+  display: none;
+}
+
+/* Mobile Viewport Styles (max-width: 767px) */
+@media (max-width: 767px) {
+  html, body {
+    height: 100dvh;
+    height: 100vh;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
+
+  .app-container {
+    height: 100dvh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.5rem 4.5rem 0.5rem;
+    box-sizing: border-box;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide top desktop tab header on phone, use mobile bottom nav */
+  .tabs-header {
+    display: none !important;
+  }
+
+  /* Fixed Glassmorphic Mobile Bottom Navigation Bar */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3.75rem;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 9990;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  body.light-theme .mobile-bottom-nav {
+    background: rgba(255, 255, 255, 0.92);
+    border-top-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    gap: 0.15rem;
+    padding: 0.35rem 0.65rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 12px;
+    flex: 1;
+    touch-action: manipulation;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary-color);
+  }
+
+  .mobile-nav-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    transition: transform 0.15s ease;
+  }
+
+  .mobile-nav-item.active .mobile-nav-icon {
+    transform: translateY(-2px) scale(1.1);
+  }
+
+  /* Floating Action Button (FAB) */
+  .mobile-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    right: 1.25rem;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), #818cf8);
+    color: white;
+    border: none;
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+    z-index: 9995;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    touch-action: manipulation;
+  }
+
+  .mobile-fab:active {
+    transform: scale(0.9);
+  }
+
+  /* Touch optimizations */
+  .btn, .expense-card, .tab-btn, .filter-pill {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+
+  .btn:active, .expense-card:active {
+    transform: scale(0.98);
+  }
+}
+
+

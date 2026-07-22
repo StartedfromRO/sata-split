@@ -1102,7 +1102,7 @@
   </div>
 
   <!-- iOS PWA Install Prompt -->
-  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
+  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
     <div style="font-size: 1.5rem; flex-shrink: 0;">📱</div>
     <div style="flex: 1; font-size: 0.9rem; line-height: 1.4; color: var(--text-primary);">
       <div style="font-size: 1.15rem; font-weight: bold; margin-bottom: 0.25rem; color: var(--primary-color);">Install SATA APP!</div>
@@ -1110,6 +1110,37 @@
     </div>
     <button type="button" id="btn-close-ios-prompt" class="dialog-close-btn" style="position: static; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer;">&times;</button>
   </div>
+
+  <!-- Mobile Floating Action Button (FAB) -->
+  <button type="button" id="fab-add-expense" class="mobile-fab" title="Add New Expense">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"></path>
+    </svg>
+  </button>
+
+  <!-- Mobile Native Bottom Navigation Bar -->
+  <nav id="mobile-bottom-nav" class="mobile-bottom-nav">
+    <button type="button" class="mobile-nav-item active" data-tab="expenses" id="bnav-expenses">
+      <span class="mobile-nav-icon">🧾</span>
+      <span class="mobile-nav-label">Expenses</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="balances" id="bnav-balances">
+      <span class="mobile-nav-icon">⚖️</span>
+      <span class="mobile-nav-label">Balances</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="activity" id="bnav-activity">
+      <span class="mobile-nav-icon">📜</span>
+      <span class="mobile-nav-label">Activity</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="notes" id="bnav-notes">
+      <span class="mobile-nav-icon">📌</span>
+      <span class="mobile-nav-label">Notes</span>
+    </button>
+    <button type="button" class="mobile-nav-item" id="bnav-manage">
+      <span class="mobile-nav-icon">⚙️</span>
+      <span class="mobile-nav-label">Manage</span>
+    </button>
+  </nav>
 
   <!-- Load main app logic -->
   <script type="module" src="app.js?v=1.8.1"></script>
