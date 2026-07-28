@@ -4,28 +4,48 @@
  * debt simplification algorithm, and real-time UI synchronization.
  */
 
-// --- Firebase Compat SDK Setup ---
+// --- Firebase SDK Setup (Supports Compat & Modular Fallback) ---
 let firebaseApp = null;
 let firestoreDb = null;
 let isFirebaseEnabled = false;
 
-function initFirebase(config) {
+async function initFirebase(config) {
+  // 1. Try Firebase Compat global (window.firebase) with retries for slow mobile loads
+  for (let i = 0; i < 10; i++) {
+    if (typeof firebase !== "undefined" && firebase.initializeApp && firebase.firestore) {
+      try {
+        if (!firebase.apps.length) {
+          firebaseApp = firebase.initializeApp(config);
+        } else {
+          firebaseApp = firebase.app();
+        }
+        firestoreDb = firebase.firestore();
+        isFirebaseEnabled = true;
+        console.log("Firebase initialized successfully via Compat SDK.");
+        return true;
+      } catch (err) {
+        console.error("Firebase compat init error:", err);
+      }
+    }
+    await new Promise(r => setTimeout(r, 250));
+  }
+
+  // 2. Fallback: Dynamic ES Module Imports
   try {
-    if (typeof firebase === "undefined") {
-      console.warn("Firebase SDK script not loaded from CDN.");
-      return false;
-    }
-    if (!firebase.apps.length) {
-      firebaseApp = firebase.initializeApp(config);
+    const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+    const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    
+    if (!getApps().length) {
+      firebaseApp = initializeApp(config);
     } else {
-      firebaseApp = firebase.app();
+      firebaseApp = getApp();
     }
-    firestoreDb = firebase.firestore();
+    firestoreDb = getFirestore(firebaseApp);
     isFirebaseEnabled = true;
-    console.log("Firebase initialized successfully.");
+    console.log("Firebase initialized successfully via Modular ESM imports.");
     return true;
   } catch (error) {
-    console.error("Failed to initialize Firebase:", error);
+    console.error("Failed to initialize Firebase via dynamic import:", error);
     isFirebaseEnabled = false;
     return false;
   }
@@ -41,8 +61,17 @@ function generateUUID() {
 class LocalStorageAdapter {
   constructor() {
     this.storageKey = "fairshare_groups_v1";
-    // Initialize default group if storage is empty
-    if (!localStorage.getItem(this.storageKey)) {
+    this.ensureDefaultGroup();
+  }
+
+  ensureDefaultGroup() {
+    const raw = localStorage.getItem(this.storageKey);
+    let groups = {};
+    if (raw) {
+      try { groups = JSON.parse(raw); } catch (e) {}
+    }
+    if (!groups || typeof groups !== "object") groups = {};
+    if (!groups["default-group"]) {
       const defaultGroup = {
         id: "default-group",
         name: "Apartment Share",
@@ -60,12 +89,18 @@ class LocalStorageAdapter {
         },
         updatedAt: Date.now()
       };
-      localStorage.setItem(this.storageKey, JSON.stringify({ "default-group": defaultGroup }));
+      groups["default-group"] = defaultGroup;
+      localStorage.setItem(this.storageKey, JSON.stringify(groups));
     }
   }
 
   async getGroups() {
-    return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+    this.ensureDefaultGroup();
+    try {
+      return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+    } catch (e) {
+      return {};
+    }
   }
 
   async getGroup(id) {
@@ -78,12 +113,14 @@ class LocalStorageAdapter {
     group.updatedAt = Date.now();
     groups[group.id] = group;
     localStorage.setItem(this.storageKey, JSON.stringify(groups));
+    window.dispatchEvent(new CustomEvent("fairshare_local_update", { detail: { groupId: group.id } }));
   }
 
   async deleteGroup(id) {
     const groups = await this.getGroups();
     delete groups[id];
     localStorage.setItem(this.storageKey, JSON.stringify(groups));
+    window.dispatchEvent(new CustomEvent("fairshare_local_update", { detail: { groupId: id } }));
   }
 
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
@@ -113,13 +150,17 @@ class LocalStorageAdapter {
 
   listenToGroup(id, callback) {
     const storageHandler = (e) => {
-      if (e.key === this.storageKey) {
+      if (e.key === this.storageKey || (e.detail && e.detail.groupId === id)) {
         this.getGroup(id).then(callback);
       }
     };
     window.addEventListener("storage", storageHandler);
+    window.addEventListener("fairshare_local_update", storageHandler);
     this.getGroup(id).then(callback);
-    return () => window.removeEventListener("storage", storageHandler);
+    return () => {
+      window.removeEventListener("storage", storageHandler);
+      window.removeEventListener("fairshare_local_update", storageHandler);
+    };
   }
 }
 
@@ -127,6 +168,7 @@ class FirestoreAdapter {
   constructor(db) {
     this.db = db;
     this.collectionName = "fairshare_groups";
+    this.isCompat = typeof db.collection === "function";
   }
 
   async getGroups() {
@@ -134,10 +176,8 @@ class FirestoreAdapter {
     const groups = {};
     for (const id of recentIds) {
       try {
-        const docSnap = await this.db.collection(this.collectionName).doc(id).get();
-        if (docSnap.exists) {
-          groups[id] = docSnap.data();
-        }
+        const group = await this.getGroup(id);
+        if (group) groups[id] = group;
       } catch (err) {
         console.error(`Error loading group ${id} from Firestore:`, err);
       }
@@ -147,10 +187,20 @@ class FirestoreAdapter {
 
   async getGroup(id) {
     try {
-      const docSnap = await this.db.collection(this.collectionName).doc(id).get();
-      if (docSnap.exists) {
-        this.trackRecentGroup(id);
-        return docSnap.data();
+      if (this.isCompat) {
+        const docSnap = await this.db.collection(this.collectionName).doc(id).get();
+        if (docSnap.exists) {
+          this.trackRecentGroup(id);
+          return docSnap.data();
+        }
+      } else {
+        const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const docRef = doc(this.db, this.collectionName, id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          this.trackRecentGroup(id);
+          return docSnap.data();
+        }
       }
     } catch (err) {
       console.error(`Error fetching group ${id}:`, err);
@@ -160,12 +210,24 @@ class FirestoreAdapter {
 
   async saveGroup(group) {
     group.updatedAt = Date.now();
-    await this.db.collection(this.collectionName).doc(group.id).set(group);
+    if (this.isCompat) {
+      await this.db.collection(this.collectionName).doc(group.id).set(group);
+    } else {
+      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const docRef = doc(this.db, this.collectionName, group.id);
+      await setDoc(docRef, group);
+    }
     this.trackRecentGroup(group.id);
   }
 
   async deleteGroup(id) {
-    await this.db.collection(this.collectionName).doc(id).delete();
+    if (this.isCompat) {
+      await this.db.collection(this.collectionName).doc(id).delete();
+    } else {
+      const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const docRef = doc(this.db, this.collectionName, id);
+      await deleteDoc(docRef);
+    }
     const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
     const updatedIds = recentIds.filter(x => x !== id);
     localStorage.setItem("fairshare_recent_groups", JSON.stringify(updatedIds));
@@ -197,18 +259,34 @@ class FirestoreAdapter {
   }
 
   listenToGroup(id, callback) {
-    const docRef = this.db.collection(this.collectionName).doc(id);
-    const unsubscribe = docRef.onSnapshot((docSnap) => {
-      if (docSnap.exists) {
-        callback(docSnap.data());
-      } else {
-        callback(null);
-      }
-    }, (error) => {
-      console.error("Firestore listen error:", error);
-    });
-
-    return () => unsubscribe();
+    if (this.isCompat) {
+      const docRef = this.db.collection(this.collectionName).doc(id);
+      const unsubscribe = docRef.onSnapshot((docSnap) => {
+        if (docSnap.exists) {
+          callback(docSnap.data());
+        } else {
+          callback(null);
+        }
+      }, (error) => {
+        console.error("Firestore listen error:", error);
+      });
+      return () => unsubscribe();
+    } else {
+      let unsubscribe = () => {};
+      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
+        const docRef = doc(this.db, this.collectionName, id);
+        unsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            callback(docSnap.data());
+          } else {
+            callback(null);
+          }
+        }, (error) => {
+          console.error("Firestore listen error:", error);
+        });
+      });
+      return () => unsubscribe();
+    }
   }
 
   trackRecentGroup(id) {
@@ -255,19 +333,26 @@ class SataSplitApp {
     this.setupEventListeners();
     this.checkIosInstallPrompt();
 
-    // 3. Determine group to load synchronously
+    // 3. Determine group to load
     const urlParams = new URLSearchParams(window.location.search);
     const urlGroupId = urlParams.get("groupId");
     const lastGroup = localStorage.getItem("fairshare_last_active_group");
     const groupToLoad = urlGroupId || lastGroup || "default-group";
 
-    // 4. Firebase check & Cloud Adapter Setup
+    // 4. Start with LocalStorage immediately so UI loads instantly
+    this.switchGroup(groupToLoad);
+
+    // 5. Connect to Cloud (Firebase) asynchronously in background and upgrade storage adapter
+    this.initCloudConnection(groupToLoad);
+  }
+
+  async initCloudConnection(groupToLoad) {
     const firebaseConfig = window.FIREBASE_CONFIG;
     const hasConfig = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
     
     if (hasConfig) {
       try {
-        const success = initFirebase(firebaseConfig);
+        const success = await initFirebase(firebaseConfig);
         if (success && firestoreDb) {
           this.storage = new FirestoreAdapter(firestoreDb);
           const badge = document.getElementById("sync-status-badge");
@@ -275,16 +360,15 @@ class SataSplitApp {
             badge.className = "sync-badge cloud";
             badge.querySelector(".label").textContent = "Cloud Synced";
           }
+          // Re-subscribe with Firestore adapter
+          this.switchGroup(groupToLoad);
         } else {
-          console.warn("initFirebase returned false. Running in Local Mode.");
+          console.warn("initFirebase returned false. Staying in Local Mode.");
         }
       } catch (err) {
         console.warn("Cloud connection error, running in Local Mode:", err);
       }
     }
-
-    // 5. Load active group and start real-time listener
-    this.switchGroup(groupToLoad);
   }
 
   // --- Real-time state syncing ---
@@ -315,9 +399,9 @@ class SataSplitApp {
         
         // Ensure currentUser is preserved and not auto-assigned if unauthenticated
         const savedName = localStorage.getItem("fairshare_my_name");
-        if (savedName && this.activeGroup.members.includes(savedName)) {
+        if (savedName && this.activeGroup.members && this.activeGroup.members.includes(savedName)) {
           this.currentUser = savedName;
-        } else if (this.currentUser && this.activeGroup.members.includes(this.currentUser)) {
+        } else if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
           localStorage.setItem("fairshare_my_name", this.currentUser);
         } else {
           this.currentUser = "";
@@ -348,6 +432,10 @@ class SataSplitApp {
             updatedAt: Date.now()
           };
           await this.storage.saveGroup(defaultGroup);
+          this.activeGroup = defaultGroup;
+          this.updateGroupSelects();
+          this.renderDashboard();
+          this.checkOnboarding();
         } else {
           this.showToast("Group not found. Redirecting to default group.", "error");
           this.switchGroup("default-group");
@@ -503,9 +591,10 @@ class SataSplitApp {
     if (!groupSelect || !userSelect) return;
     
     // Populate Group dropdown
-    const allGroups = await this.storage.getGroups();
-    
-    // Clear list right before drawing (prevents concurrent race duplicates)
+    let allGroups = await this.storage.getGroups();
+    if (!allGroups || typeof allGroups !== "object") allGroups = {};
+
+    // Clear list right before drawing
     groupSelect.innerHTML = "";
     userSelect.innerHTML = "";
     
@@ -514,16 +603,23 @@ class SataSplitApp {
       allGroups[this.activeGroup.id] = this.activeGroup;
     }
 
+    // Fallback if allGroups is still empty
+    if (Object.keys(allGroups).length === 0 && this.activeGroup) {
+      allGroups[this.activeGroup.id] = this.activeGroup;
+    }
+
     Object.values(allGroups).forEach(group => {
-      const opt = document.createElement("option");
-      opt.value = group.id;
-      opt.textContent = group.name;
-      opt.selected = (group.id === this.activeGroup?.id);
-      groupSelect.appendChild(opt);
+      if (group && group.id && group.name) {
+        const opt = document.createElement("option");
+        opt.value = group.id;
+        opt.textContent = group.name;
+        opt.selected = (group.id === this.activeGroup?.id);
+        groupSelect.appendChild(opt);
+      }
     });
 
     // Populate Active User dropdown
-    if (this.activeGroup) {
+    if (this.activeGroup && Array.isArray(this.activeGroup.members)) {
       this.activeGroup.members.forEach(member => {
         const opt = document.createElement("option");
         opt.value = member;
@@ -2517,7 +2613,17 @@ class SataSplitApp {
 
     // 11. Cloud sync tutorial badge trigger
     document.getElementById("sync-status-badge").addEventListener("click", () => {
-      document.getElementById("cloud-setup-dialog").showModal();
+      if (isFirebaseEnabled && this.storage instanceof FirestoreAdapter) {
+        this.showToast("Cloud Database is connected & syncing in real time!", "success");
+      } else {
+        this.showToast("Connecting to Cloud Database...", "info");
+        const activeId = this.activeGroup ? this.activeGroup.id : "default-group";
+        this.initCloudConnection(activeId).then(() => {
+          if (!isFirebaseEnabled) {
+            document.getElementById("cloud-setup-dialog").showModal();
+          }
+        });
+      }
     });
 
     // 12. Delete Active Group
