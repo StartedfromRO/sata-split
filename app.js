@@ -681,6 +681,16 @@ class SataSplitApp {
 
     // Populate Active User dropdown
     if (this.activeGroup && Array.isArray(this.activeGroup.members)) {
+      if (!this.currentUser || !this.activeGroup.members.includes(this.currentUser)) {
+        const savedName = localStorage.getItem("fairshare_my_name");
+        if (savedName && this.activeGroup.members.includes(savedName)) {
+          this.currentUser = savedName;
+        } else if (this.activeGroup.members.length > 0) {
+          this.currentUser = this.activeGroup.members[0];
+          localStorage.setItem("fairshare_my_name", this.currentUser);
+        }
+      }
+
       this.activeGroup.members.forEach(member => {
         const opt = document.createElement("option");
         opt.value = member;
@@ -3823,35 +3833,52 @@ class SataSplitApp {
   }
 
   checkOnboarding() {
-    if (!this.activeGroup) return;
+    if (!this.activeGroup || !Array.isArray(this.activeGroup.members)) return;
 
     const savedName = localStorage.getItem("fairshare_my_name");
-    const memberExists = savedName && this.activeGroup.members.includes(savedName);
+    const hasValidUser = savedName && this.activeGroup.members.includes(savedName);
 
     const dialog = document.getElementById("onboarding-dialog");
-    if (!memberExists && dialog && !dialog.open) {
+    if (!hasValidUser && dialog) {
       this.openOnboardingDialog();
     }
   }
 
   openOnboardingDialog() {
     const dialog = document.getElementById("onboarding-dialog");
-    if (!dialog) return;
+    if (!dialog || !this.activeGroup) return;
+
+    if (dialog.open) {
+      try { dialog.close(); } catch(e){}
+    }
 
     dialog.addEventListener("cancel", (e) => e.preventDefault());
     
     const select = document.getElementById("onboarding-select-member");
-    select.innerHTML = '<option value="">-- Select Member Name --</option>';
-    
-    this.activeGroup.members.forEach(m => {
-      const opt = document.createElement("option");
-      opt.value = m;
-      opt.textContent = m;
-      select.appendChild(opt);
-    });
+    if (select) {
+      select.innerHTML = '<option value="">-- Select Member Name --</option>';
+      
+      if (Array.isArray(this.activeGroup.members)) {
+        this.activeGroup.members.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          if (m === this.currentUser || m === localStorage.getItem("fairshare_my_name")) {
+            opt.selected = true;
+          }
+          select.appendChild(opt);
+        });
+      }
+    }
 
-    document.getElementById("onboarding-input-name").value = "";
-    dialog.showModal();
+    const inputName = document.getElementById("onboarding-input-name");
+    if (inputName) inputName.value = "";
+    
+    try {
+      dialog.showModal();
+    } catch (err) {
+      console.warn("openOnboardingDialog showModal note:", err);
+    }
   }
 
   compressImage(file) {
