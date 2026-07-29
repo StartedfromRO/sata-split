@@ -258,7 +258,7 @@ class FirestoreAdapter {
     return newGroup;
   }
 
-  listenToGroup(id, callback) {
+  listenToGroup(id, callback, onError) {
     if (this.isCompat) {
       const docRef = this.db.collection(this.collectionName).doc(id);
       const unsubscribe = docRef.onSnapshot((docSnap) => {
@@ -269,6 +269,7 @@ class FirestoreAdapter {
         }
       }, (error) => {
         console.error("Firestore listen error:", error);
+        if (onError) onError(error);
       });
       return () => unsubscribe();
     } else {
@@ -283,7 +284,10 @@ class FirestoreAdapter {
           }
         }, (error) => {
           console.error("Firestore listen error:", error);
+          if (onError) onError(error);
         });
+      }).catch((err) => {
+        if (onError) onError(err);
       });
       return () => unsubscribe();
     }
@@ -317,6 +321,19 @@ class SataSplitApp {
     window.app = this;
     
     this.init();
+  }
+
+  setSyncStatus(isCloud) {
+    const badge = document.getElementById("sync-status-badge");
+    if (badge) {
+      if (isCloud) {
+        badge.className = "sync-badge cloud";
+        badge.querySelector(".label").textContent = "Cloud Synced";
+      } else {
+        badge.className = "sync-badge local";
+        badge.querySelector(".label").textContent = "Local Mode";
+      }
+    }
   }
 
   async init() {
@@ -355,18 +372,16 @@ class SataSplitApp {
         const success = await initFirebase(firebaseConfig);
         if (success && firestoreDb) {
           this.storage = new FirestoreAdapter(firestoreDb);
-          const badge = document.getElementById("sync-status-badge");
-          if (badge) {
-            badge.className = "sync-badge cloud";
-            badge.querySelector(".label").textContent = "Cloud Synced";
-          }
+          this.setSyncStatus(true);
           // Re-subscribe with Firestore adapter
           this.switchGroup(groupToLoad);
         } else {
           console.warn("initFirebase returned false. Staying in Local Mode.");
+          this.setSyncStatus(false);
         }
       } catch (err) {
         console.warn("Cloud connection error, running in Local Mode:", err);
+        this.setSyncStatus(false);
       }
     }
   }
@@ -379,69 +394,80 @@ class SataSplitApp {
       this.unsubscribeActiveListener();
     }
 
-    // Start listening to the new group
-    this.unsubscribeActiveListener = this.storage.listenToGroup(groupId, async (groupData) => {
-      if (groupData) {
-        this.activeGroup = groupData;
-        localStorage.setItem("fairshare_last_active_group", groupId);
-        
-        // Reset filters when switching groups
-        this.activeFilterPill = "all";
-        this.exitBatchSelectionMode();
-        const filterPills = document.querySelectorAll(".filter-pill");
-        filterPills.forEach(p => {
-          if (p.getAttribute("data-filter") === "all") {
-            p.classList.add("active");
+    // Start listening to the group
+    this.unsubscribeActiveListener = this.storage.listenToGroup(
+      groupId,
+      async (groupData) => {
+        if (groupData) {
+          this.activeGroup = groupData;
+          localStorage.setItem("fairshare_last_active_group", groupId);
+          
+          // Reset filters when switching groups
+          this.activeFilterPill = "all";
+          this.exitBatchSelectionMode();
+          const filterPills = document.querySelectorAll(".filter-pill");
+          filterPills.forEach(p => {
+            if (p.getAttribute("data-filter") === "all") {
+              p.classList.add("active");
+            } else {
+              p.classList.remove("active");
+            }
+          });
+          
+          // Ensure currentUser is preserved and not auto-assigned if unauthenticated
+          const savedName = localStorage.getItem("fairshare_my_name");
+          if (savedName && this.activeGroup.members && this.activeGroup.members.includes(savedName)) {
+            this.currentUser = savedName;
+          } else if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
+            localStorage.setItem("fairshare_my_name", this.currentUser);
           } else {
-            p.classList.remove("active");
+            this.currentUser = "";
           }
-        });
-        
-        // Ensure currentUser is preserved and not auto-assigned if unauthenticated
-        const savedName = localStorage.getItem("fairshare_my_name");
-        if (savedName && this.activeGroup.members && this.activeGroup.members.includes(savedName)) {
-          this.currentUser = savedName;
-        } else if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
-          localStorage.setItem("fairshare_my_name", this.currentUser);
-        } else {
-          this.currentUser = "";
-        }
-        
-        this.updateGroupSelects();
-        this.renderDashboard();
-        this.checkOnboarding();
-      } else {
-        // Group data is null (does not exist in storage)
-        if (groupId === "default-group") {
-          console.log("default-group not found. Creating it...");
-          const defaultGroup = {
-            id: "default-group",
-            name: "Apartment Share",
-            currency: "$",
-            members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
-            expenses: [],
-            settlements: [],
-            bankDetails: {
-              "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
-              "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
-              "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
-              "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
-              "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
-              "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
-            },
-            updatedAt: Date.now()
-          };
-          await this.storage.saveGroup(defaultGroup);
-          this.activeGroup = defaultGroup;
+          
           this.updateGroupSelects();
           this.renderDashboard();
           this.checkOnboarding();
         } else {
-          this.showToast("Group not found. Redirecting to default group.", "error");
-          this.switchGroup("default-group");
+          // Group data is null (does not exist in storage)
+          if (groupId === "default-group") {
+            console.log("default-group not found. Creating it...");
+            const defaultGroup = {
+              id: "default-group",
+              name: "Apartment Share",
+              currency: "$",
+              members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
+              expenses: [],
+              settlements: [],
+              bankDetails: {
+                "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
+                "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
+                "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
+                "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
+                "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
+                "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
+              },
+              updatedAt: Date.now()
+            };
+            await this.storage.saveGroup(defaultGroup);
+            this.activeGroup = defaultGroup;
+            this.updateGroupSelects();
+            this.renderDashboard();
+            this.checkOnboarding();
+          } else {
+            this.showToast("Group not found. Redirecting to default group.", "error");
+            this.switchGroup("default-group");
+          }
+        }
+      },
+      (error) => {
+        console.warn("Firestore listener error, falling back to Local Mode:", error);
+        if (this.storage instanceof FirestoreAdapter) {
+          this.setSyncStatus(false);
+          this.storage = new LocalStorageAdapter();
+          this.switchGroup(groupId);
         }
       }
-    });
+    );
 
     // Update URL parameter without reloading
     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?groupId=${groupId}`;
