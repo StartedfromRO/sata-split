@@ -3846,7 +3846,7 @@ class SataSplitApp {
 
   openOnboardingDialog() {
     const dialog = document.getElementById("onboarding-dialog");
-    if (!dialog || !this.activeGroup) return;
+    if (!dialog) return;
 
     if (dialog.open) {
       try { dialog.close(); } catch(e){}
@@ -3858,17 +3858,19 @@ class SataSplitApp {
     if (select) {
       select.innerHTML = '<option value="">-- Select Member Name --</option>';
       
-      if (Array.isArray(this.activeGroup.members)) {
-        this.activeGroup.members.forEach(m => {
-          const opt = document.createElement("option");
-          opt.value = m;
-          opt.textContent = m;
-          if (m === this.currentUser || m === localStorage.getItem("fairshare_my_name")) {
-            opt.selected = true;
-          }
-          select.appendChild(opt);
-        });
-      }
+      const members = (this.activeGroup && Array.isArray(this.activeGroup.members) && this.activeGroup.members.length > 0)
+        ? this.activeGroup.members
+        : ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
+        
+      members.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === this.currentUser || m === localStorage.getItem("fairshare_my_name")) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
     }
 
     const inputName = document.getElementById("onboarding-input-name");
