@@ -460,11 +460,20 @@ class SataSplitApp {
         }
       },
       (error) => {
-        console.warn("Firestore listener error, falling back to Local Mode:", error);
-        if (this.storage instanceof FirestoreAdapter) {
-          this.setSyncStatus(false);
-          this.storage = new LocalStorageAdapter();
-          this.switchGroup(groupId);
+        console.warn("Firestore listener note:", error);
+        if (error && error.code === "permission-denied") {
+          this.showToast("Firestore Permission Denied: Check Security Rules in console.", "error");
+        }
+        // Safely draw from local memory fallback if activeGroup is empty, keeping Cloud Adapter active
+        if (!this.activeGroup) {
+          const localAdapter = new LocalStorageAdapter();
+          localAdapter.getGroup(groupId).then((localGroup) => {
+            if (localGroup && !this.activeGroup) {
+              this.activeGroup = localGroup;
+              this.updateGroupSelects();
+              this.renderDashboard();
+            }
+          });
         }
       }
     );
