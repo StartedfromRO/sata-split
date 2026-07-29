@@ -1165,6 +1165,9 @@ class SataSplitApp {
 
   async addExpense(expenseData) {
     if (!this.activeGroup) return;
+    if (!Array.isArray(this.activeGroup.expenses)) {
+      this.activeGroup.expenses = [];
+    }
 
     if (this.attachedReceiptBase64) {
       expenseData.hasReceipt = true;
@@ -1179,6 +1182,9 @@ class SataSplitApp {
 
   async updateExpense(id, updatedData) {
     if (!this.activeGroup) return;
+    if (!Array.isArray(this.activeGroup.expenses)) {
+      this.activeGroup.expenses = [];
+    }
     const index = this.activeGroup.expenses.findIndex(e => e.id === id);
     if (index !== -1) {
       const oldDesc = this.activeGroup.expenses[index].description;
@@ -1197,6 +1203,9 @@ class SataSplitApp {
 
   async deleteExpense(id) {
     if (!this.activeGroup) return;
+    if (!Array.isArray(this.activeGroup.expenses)) {
+      this.activeGroup.expenses = [];
+    }
     const exp = this.activeGroup.expenses.find(e => e.id === id);
     if (!exp) return;
     
@@ -1220,6 +1229,9 @@ class SataSplitApp {
 
   async addSettlement(settlementData) {
     if (!this.activeGroup) return;
+    if (!Array.isArray(this.activeGroup.settlements)) {
+      this.activeGroup.settlements = [];
+    }
     this.activeGroup.settlements.push(settlementData);
     this.logActivity(`recorded settlement: paid ${settlementData.recipient} ${this.activeGroup.currency}${parseFloat(settlementData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
