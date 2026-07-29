@@ -18,8 +18,23 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   
-  <!-- Load Configuration First -->
-  <script src="config.js"></script>
+  <!-- Load Configuration & Pre-initialize Firebase -->
+  <script src="config.js?v=1.8.5"></script>
+  <script>
+    try {
+      if (window.FIREBASE_CONFIG && typeof firebase !== "undefined") {
+        if (!firebase.apps.length) {
+          window.firebaseApp = firebase.initializeApp(window.FIREBASE_CONFIG);
+        } else {
+          window.firebaseApp = firebase.app();
+        }
+        window.firestoreDb = firebase.firestore();
+        console.log("Firebase pre-initialized in head.");
+      }
+    } catch (e) {
+      console.warn("Head Firebase init note:", e);
+    }
+  </script>
 </head>
 <body>
   
@@ -58,9 +73,9 @@
           </div>
           
           <!-- Cloud Sync Badge -->
-          <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
+          <button id="sync-status-badge" class="sync-badge cloud" title="Database Sync Status">
             <span class="dot"></span>
-            <span class="label">Local Mode</span>
+            <span class="label">Cloud Synced</span>
           </button>
           
           <!-- Theme Toggle -->
@@ -1228,6 +1243,6 @@
   </nav>
 
   <!-- Load main app logic -->
-  <script type="module" src="app.js?v=1.8.1"></script>
+  <script type="module" src="app.js?v=1.8.5"></script>
 </body>
 </html>

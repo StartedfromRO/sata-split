@@ -10,8 +10,16 @@ let firestoreDb = null;
 let isFirebaseEnabled = false;
 
 async function initFirebase(config) {
-  // 1. Try Firebase Compat global (window.firebase) with retries for slow mobile loads
-  for (let i = 0; i < 10; i++) {
+  // 1. Check if already pre-initialized in head
+  if (window.firestoreDb) {
+    firestoreDb = window.firestoreDb;
+    isFirebaseEnabled = true;
+    console.log("Firebase using pre-initialized Firestore instance.");
+    return true;
+  }
+
+  // 2. Try Firebase Compat global (window.firebase)
+  for (let i = 0; i < 5; i++) {
     if (typeof firebase !== "undefined" && firebase.initializeApp && firebase.firestore) {
       try {
         if (!firebase.apps.length) {
@@ -20,6 +28,7 @@ async function initFirebase(config) {
           firebaseApp = firebase.app();
         }
         firestoreDb = firebase.firestore();
+        window.firestoreDb = firestoreDb;
         isFirebaseEnabled = true;
         console.log("Firebase initialized successfully via Compat SDK.");
         return true;
@@ -27,10 +36,10 @@ async function initFirebase(config) {
         console.error("Firebase compat init error:", err);
       }
     }
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 100));
   }
 
-  // 2. Fallback: Dynamic ES Module Imports
+  // 3. Fallback: Dynamic ES Module Imports
   try {
     const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
     const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
@@ -41,6 +50,7 @@ async function initFirebase(config) {
       firebaseApp = getApp();
     }
     firestoreDb = getFirestore(firebaseApp);
+    window.firestoreDb = firestoreDb;
     isFirebaseEnabled = true;
     console.log("Firebase initialized successfully via Modular ESM imports.");
     return true;
