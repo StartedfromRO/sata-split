@@ -181,6 +181,22 @@ class FirestoreAdapter {
     this.isCompat = typeof db.collection === "function";
   }
 
+  normalizeGroup(docId, rawData) {
+    if (!rawData || typeof rawData !== "object") return null;
+    const defaultMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
+    const members = Array.isArray(rawData.members) && rawData.members.length > 0 ? rawData.members : defaultMembers;
+    return {
+      id: rawData.id || docId,
+      name: rawData.name || "Apartment Share",
+      currency: rawData.currency || "$",
+      members: members,
+      expenses: Array.isArray(rawData.expenses) ? rawData.expenses : [],
+      settlements: Array.isArray(rawData.settlements) ? rawData.settlements : [],
+      bankDetails: rawData.bankDetails || {},
+      updatedAt: rawData.updatedAt || Date.now()
+    };
+  }
+
   async getGroups() {
     const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || '["default-group"]');
     const groups = {};
@@ -199,17 +215,17 @@ class FirestoreAdapter {
     try {
       if (this.isCompat) {
         const docSnap = await this.db.collection(this.collectionName).doc(id).get();
-        if (docSnap.exists) {
+        if (docSnap && docSnap.exists) {
           this.trackRecentGroup(id);
-          return docSnap.data();
+          return this.normalizeGroup(id, docSnap.data());
         }
       } else {
         const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
         const docRef = doc(this.db, this.collectionName, id);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        if (docSnap && docSnap.exists()) {
           this.trackRecentGroup(id);
-          return docSnap.data();
+          return this.normalizeGroup(id, docSnap.data());
         }
       }
     } catch (err) {
@@ -272,8 +288,8 @@ class FirestoreAdapter {
     if (this.isCompat) {
       const docRef = this.db.collection(this.collectionName).doc(id);
       const unsubscribe = docRef.onSnapshot((docSnap) => {
-        if (docSnap.exists) {
-          callback(docSnap.data());
+        if (docSnap && docSnap.exists) {
+          callback(this.normalizeGroup(id, docSnap.data()));
         } else {
           callback(null);
         }
@@ -287,8 +303,8 @@ class FirestoreAdapter {
       import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
         const docRef = doc(this.db, this.collectionName, id);
         unsubscribe = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            callback(docSnap.data());
+          if (docSnap && docSnap.exists()) {
+            callback(this.normalizeGroup(id, docSnap.data()));
           } else {
             callback(null);
           }
