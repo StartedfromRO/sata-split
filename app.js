@@ -1314,11 +1314,17 @@ class SataSplitApp {
       expIdInput.value = "";
       // Default date to today
       dateInput.value = new Date().toISOString().substring(0, 10);
-      paidBySelect.value = this.currentUser;
+      if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
+        paidBySelect.value = this.currentUser;
+      } else if (this.activeGroup.members && this.activeGroup.members.length > 0) {
+        paidBySelect.value = this.activeGroup.members[0];
+      }
       
       // Set defaults
-      form.querySelector('input[name="expense-category"][value="meals"]').checked = true;
-      form.querySelector('input[name="split-type"][value="equal"]').checked = true;
+      const defaultCat = form.querySelector('input[name="expense-category"][value="meals"]');
+      if (defaultCat) defaultCat.checked = true;
+      const defaultSplit = form.querySelector('input[name="split-type"][value="equal"]');
+      if (defaultSplit) defaultSplit.checked = true;
     }
 
     // Reset Currency Converter Form State
@@ -2527,12 +2533,18 @@ class SataSplitApp {
       e.preventDefault();
       
       const id = document.getElementById("expense-id-input").value;
-      const description = document.getElementById("expense-desc").value;
-      const amount = parseFloat(document.getElementById("expense-amount").value);
-      const date = document.getElementById("expense-date").value;
-      const paidBy = document.getElementById("expense-paid-by").value;
-      const category = document.querySelector('input[name="expense-category"]:checked').value;
-      const splitType = document.querySelector('input[name="split-type"]:checked').value;
+      const description = document.getElementById("expense-desc").value || "Expense";
+      const amount = parseFloat(document.getElementById("expense-amount").value) || 0;
+      const date = document.getElementById("expense-date").value || new Date().toISOString().substring(0, 10);
+      let paidBy = document.getElementById("expense-paid-by").value;
+      if (!paidBy && this.activeGroup && this.activeGroup.members && this.activeGroup.members.length > 0) {
+        paidBy = this.activeGroup.members[0];
+      }
+
+      const catEl = document.querySelector('input[name="expense-category"]:checked');
+      const splitEl = document.querySelector('input[name="split-type"]:checked');
+      const category = catEl ? catEl.value : "meals";
+      const splitType = splitEl ? splitEl.value : "equal";
 
       // Extract splits values
       const splits = {};
