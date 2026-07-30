@@ -71,12 +71,12 @@
           </button>
           
           <!-- Changelog Button -->
-          <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
+          <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;" onclick="document.getElementById('changelog-dialog').showModal()">
             📜
           </button>
           
           <!-- API Settings Button -->
-          <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
+          <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;" onclick="document.getElementById('api-key-dialog').showModal()">
             ⚙️
           </button>
         </div>
@@ -84,11 +84,11 @@
 
       <!-- Desktop Nav Tab Bar (for wide screens) -->
       <nav class="tabs-header">
-        <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
-        <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
-        <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
-        <button id="tab-btn-notes" class="tab-btn">Notes Wall</button>
-        <button id="tab-btn-manage" class="tab-btn">Manage Group</button>
+        <button id="tab-btn-expenses" class="tab-btn active" onclick="if(window.app) window.app.switchTab('expenses')">Expenses Ledger</button>
+        <button id="tab-btn-balances" class="tab-btn" onclick="if(window.app) window.app.switchTab('balances')">Balances & Settlements</button>
+        <button id="tab-btn-activity" class="tab-btn" onclick="if(window.app) window.app.switchTab('activity')">Activity Feed</button>
+        <button id="tab-btn-notes" class="tab-btn" onclick="if(window.app) window.app.switchTab('notes')">Notes Wall</button>
+        <button id="tab-btn-manage" class="tab-btn" onclick="if(window.app) window.app.switchTab('manage')">Manage Group</button>
       </nav>
 
       <!-- Screen Router Area -->
@@ -893,8 +893,21 @@
       
       <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
         
-        <!-- v1.9.0 -->
+        <!-- v1.9.1 -->
         <div class="changelog-version">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.9.1</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-30</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Fault-Tolerant Event Binding & Dual-Layer Trigger Engine</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li><strong>Fault-Tolerant Event Binding (`on`)</strong>: Wrapped all element event listeners in a safe null-guard to ensure missing or layout-shifted DOM elements can never halt execution.</li>
+            <li><strong>Dual-Layer Button Triggers</strong>: Added inline `onclick` fallbacks to header controls (`📜`, `⚙️`, `👤`), "+ Add Expense" button, and all 5 view tabs (`Expenses`, `Balances`, `Activity`, `Notes`, `Manage`).</li>
+          </ul>
+        </div>
+
+        <!-- v1.9.0 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.9.0</span>
             <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-30</span>
@@ -1190,29 +1203,29 @@
 
   <!-- Mobile Native Bottom Navigation Bar -->
   <nav id="mobile-bottom-nav" class="mobile-bottom-nav">
-    <button type="button" class="mobile-nav-item active" data-tab="expenses" id="bnav-expenses">
+    <button type="button" class="mobile-nav-item active" data-tab="expenses" id="bnav-expenses" onclick="if(window.app) window.app.switchTab('expenses')">
       <span class="mobile-nav-icon">🧾</span>
       <span class="mobile-nav-label">Expenses</span>
     </button>
-    <button type="button" class="mobile-nav-item" data-tab="balances" id="bnav-balances">
+    <button type="button" class="mobile-nav-item" data-tab="balances" id="bnav-balances" onclick="if(window.app) window.app.switchTab('balances')">
       <span class="mobile-nav-icon">⚖️</span>
       <span class="mobile-nav-label">Balances</span>
     </button>
-    <button type="button" class="mobile-nav-item" data-tab="activity" id="bnav-activity">
+    <button type="button" class="mobile-nav-item" data-tab="activity" id="bnav-activity" onclick="if(window.app) window.app.switchTab('activity')">
       <span class="mobile-nav-icon">📜</span>
       <span class="mobile-nav-label">Activity</span>
     </button>
-    <button type="button" class="mobile-nav-item" data-tab="notes" id="bnav-notes">
+    <button type="button" class="mobile-nav-item" data-tab="notes" id="bnav-notes" onclick="if(window.app) window.app.switchTab('notes')">
       <span class="mobile-nav-icon">📌</span>
       <span class="mobile-nav-label">Notes</span>
     </button>
-    <button type="button" class="mobile-nav-item" id="bnav-manage">
+    <button type="button" class="mobile-nav-item" id="bnav-manage" onclick="if(window.app) window.app.switchTab('manage')">
       <span class="mobile-nav-icon">⚙️</span>
       <span class="mobile-nav-label">Manage</span>
     </button>
   </nav>
 
   <!-- Load main app logic -->
-  <script type="module" src="app.js?v=1.8.1"></script>
+  <script type="module" src="app.js?v=1.9.1"></script>
 </body>
 </html>

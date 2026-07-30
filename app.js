@@ -1717,40 +1717,42 @@ class SataSplitApp {
     }
   }
 
+  on(id, event, handler) {
+    if (!id) return;
+    const el = typeof id === "string" ? document.getElementById(id) : id;
+    if (el) {
+      el.addEventListener(event, handler);
+    }
+  }
+
   // --- Event Listeners Binder ---
 
   setupEventListeners() {
     // 1. Group Selector
-    document.getElementById("group-select").addEventListener("change", (e) => {
+    this.on("group-select", "change", (e) => {
       this.switchGroup(e.target.value);
     });
 
     // 2. Active User Selector
-    document.getElementById("user-select").addEventListener("change", (e) => {
+    this.on("user-select", "change", (e) => {
       this.currentUser = e.target.value;
       localStorage.setItem("fairshare_my_name", e.target.value);
       this.renderDashboard();
     });
 
     // 3. Theme Toggle
-    document.getElementById("theme-toggle").addEventListener("click", () => {
+    this.on("theme-toggle", "click", () => {
       const isLight = document.body.classList.toggle("light-theme");
       localStorage.setItem("fairshare_theme", isLight ? "light" : "dark");
       this.updateThemeIcons(isLight);
     });
 
     // 4. Tab Navigation (Desktop & Mobile Nav)
-    const tabExpenses = document.getElementById("tab-btn-expenses");
-    const tabBalances = document.getElementById("tab-btn-balances");
-    const tabActivity = document.getElementById("tab-btn-activity");
-    const tabNotes = document.getElementById("tab-btn-notes");
-    const tabManage = document.getElementById("tab-btn-manage");
-
-    if (tabExpenses) tabExpenses.addEventListener("click", () => this.switchTab("expenses"));
-    if (tabBalances) tabBalances.addEventListener("click", () => this.switchTab("balances"));
-    if (tabActivity) tabActivity.addEventListener("click", () => this.switchTab("activity"));
-    if (tabNotes) tabNotes.addEventListener("click", () => this.switchTab("notes"));
-    if (tabManage) tabManage.addEventListener("click", () => this.switchTab("manage"));
+    this.on("tab-btn-expenses", "click", () => this.switchTab("expenses"));
+    this.on("tab-btn-balances", "click", () => this.switchTab("balances"));
+    this.on("tab-btn-activity", "click", () => this.switchTab("activity"));
+    this.on("tab-btn-notes", "click", () => this.switchTab("notes"));
+    this.on("tab-btn-manage", "click", () => this.switchTab("manage"));
 
     // Mobile Bottom Navigation items
     document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navBtn => {
@@ -1760,19 +1762,24 @@ class SataSplitApp {
       });
     });
 
-    const bnavManage = document.getElementById("bnav-manage");
-    if (bnavManage) {
-      bnavManage.addEventListener("click", () => {
-        this.switchTab("manage");
-      });
-    }
+    this.on("bnav-manage", "click", () => {
+      this.switchTab("manage");
+    });
 
     // 5. Search and Filters
-    document.getElementById("expense-search").addEventListener("input", () => this.renderDashboard());
-    document.getElementById("expense-filter-category").addEventListener("change", () => this.renderDashboard());
+    this.on("expense-search", "input", () => this.renderDashboard());
+    this.on("expense-filter-category", "change", () => this.renderDashboard());
 
-    // 6. Expense Modal triggers
-    document.getElementById("btn-open-expense-dialog").addEventListener("click", () => this.openExpenseForm());
+    // 6. Expense Modal triggers & Header Buttons
+    this.on("btn-open-expense-dialog", "click", () => this.openExpenseForm());
+    this.on("btn-open-changelog", "click", () => {
+      const dialog = document.getElementById("changelog-dialog");
+      if (dialog) dialog.showModal();
+    });
+    this.on("btn-open-api-settings", "click", () => {
+      const dialog = document.getElementById("api-key-dialog");
+      if (dialog) dialog.showModal();
+    });
     
     // Split Type Radio Button Changes
     document.querySelectorAll('input[name="split-type"]').forEach(radio => {
