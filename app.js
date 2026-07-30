@@ -4,58 +4,24 @@
  * debt simplification algorithm, and real-time UI synchronization.
  */
 
-// --- Firebase SDK Setup (Supports Compat & Modular Fallback) ---
+// --- Firebase Modular SDK Imports (via CDN) ---
 let firebaseApp = null;
 let firestoreDb = null;
 let isFirebaseEnabled = false;
 
+// Dynamic imports of Firebase libraries
 async function initFirebase(config) {
-  // 1. Check if already pre-initialized in head
-  if (window.firestoreDb) {
-    firestoreDb = window.firestoreDb;
-    isFirebaseEnabled = true;
-    console.log("Firebase using pre-initialized Firestore instance.");
-    return true;
-  }
-
-  // 2. Try Firebase Compat global (window.firebase)
-  for (let i = 0; i < 5; i++) {
-    if (typeof firebase !== "undefined" && firebase.initializeApp && firebase.firestore) {
-      try {
-        if (!firebase.apps.length) {
-          firebaseApp = firebase.initializeApp(config);
-        } else {
-          firebaseApp = firebase.app();
-        }
-        firestoreDb = firebase.firestore();
-        window.firestoreDb = firestoreDb;
-        isFirebaseEnabled = true;
-        console.log("Firebase initialized successfully via Compat SDK.");
-        return true;
-      } catch (err) {
-        console.error("Firebase compat init error:", err);
-      }
-    }
-    await new Promise(r => setTimeout(r, 100));
-  }
-
-  // 3. Fallback: Dynamic ES Module Imports
   try {
-    const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
     const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     
-    if (!getApps().length) {
-      firebaseApp = initializeApp(config);
-    } else {
-      firebaseApp = getApp();
-    }
+    firebaseApp = initializeApp(config);
     firestoreDb = getFirestore(firebaseApp);
-    window.firestoreDb = firestoreDb;
     isFirebaseEnabled = true;
-    console.log("Firebase initialized successfully via Modular ESM imports.");
+    console.log("Firebase initialized successfully.");
     return true;
   } catch (error) {
-    console.error("Failed to initialize Firebase via dynamic import:", error);
+    console.error("Failed to initialize Firebase:", error);
     isFirebaseEnabled = false;
     return false;
   }
@@ -71,17 +37,8 @@ function generateUUID() {
 class LocalStorageAdapter {
   constructor() {
     this.storageKey = "fairshare_groups_v1";
-    this.ensureDefaultGroup();
-  }
-
-  ensureDefaultGroup() {
-    const raw = localStorage.getItem(this.storageKey);
-    let groups = {};
-    if (raw) {
-      try { groups = JSON.parse(raw); } catch (e) {}
-    }
-    if (!groups || typeof groups !== "object") groups = {};
-    if (!groups["default-group"]) {
+    // Initialize default group if storage is empty
+    if (!localStorage.getItem(this.storageKey)) {
       const defaultGroup = {
         id: "default-group",
         name: "Apartment Share",
@@ -99,18 +56,12 @@ class LocalStorageAdapter {
         },
         updatedAt: Date.now()
       };
-      groups["default-group"] = defaultGroup;
-      localStorage.setItem(this.storageKey, JSON.stringify(groups));
+      localStorage.setItem(this.storageKey, JSON.stringify({ "default-group": defaultGroup }));
     }
   }
 
   async getGroups() {
-    this.ensureDefaultGroup();
-    try {
-      return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
-    } catch (e) {
-      return {};
-    }
+    return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
   }
 
   async getGroup(id) {
@@ -123,14 +74,12 @@ class LocalStorageAdapter {
     group.updatedAt = Date.now();
     groups[group.id] = group;
     localStorage.setItem(this.storageKey, JSON.stringify(groups));
-    window.dispatchEvent(new CustomEvent("fairshare_local_update", { detail: { groupId: group.id } }));
   }
 
   async deleteGroup(id) {
     const groups = await this.getGroups();
     delete groups[id];
     localStorage.setItem(this.storageKey, JSON.stringify(groups));
-    window.dispatchEvent(new CustomEvent("fairshare_local_update", { detail: { groupId: id } }));
   }
 
   async createGroup(name, currency = "$", initialMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"]) {
@@ -159,18 +108,20 @@ class LocalStorageAdapter {
   }
 
   listenToGroup(id, callback) {
+    // Local storage has no real-time push, so we trigger callbacks on updates manually.
+    // We register a simple poll or just let normal actions trigger a reload.
+    // For local storage, we also listen to the window storage event (for multiple local tabs).
     const storageHandler = (e) => {
-      if (e.key === this.storageKey || (e.detail && e.detail.groupId === id)) {
+      if (e.key === this.storageKey) {
         this.getGroup(id).then(callback);
       }
     };
     window.addEventListener("storage", storageHandler);
-    window.addEventListener("fairshare_local_update", storageHandler);
+    
+    // Initial fetch
     this.getGroup(id).then(callback);
-    return () => {
-      window.removeEventListener("storage", storageHandler);
-      window.removeEventListener("fairshare_local_update", storageHandler);
-    };
+    
+    return () => window.removeEventListener("storage", storageHandler);
   }
 }
 
@@ -178,32 +129,23 @@ class FirestoreAdapter {
   constructor(db) {
     this.db = db;
     this.collectionName = "fairshare_groups";
-    this.isCompat = typeof db.collection === "function";
-  }
-
-  normalizeGroup(docId, rawData) {
-    if (!rawData || typeof rawData !== "object") return null;
-    const defaultMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
-    const members = Array.isArray(rawData.members) && rawData.members.length > 0 ? rawData.members : defaultMembers;
-    return {
-      id: rawData.id || docId,
-      name: rawData.name || "Apartment Share",
-      currency: rawData.currency || "$",
-      members: members,
-      expenses: Array.isArray(rawData.expenses) ? rawData.expenses : [],
-      settlements: Array.isArray(rawData.settlements) ? rawData.settlements : [],
-      bankDetails: rawData.bankDetails || {},
-      updatedAt: rawData.updatedAt || Date.now()
-    };
   }
 
   async getGroups() {
-    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || '["default-group"]');
+    // Note: In Firestore mode, we don't list all public groups for privacy.
+    // Instead we just keep track of recently accessed group IDs in localStorage.
+    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
     const groups = {};
+    
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    
     for (const id of recentIds) {
       try {
-        const group = await this.getGroup(id);
-        if (group) groups[id] = group;
+        const docRef = doc(this.db, this.collectionName, id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          groups[id] = docSnap.data();
+        }
       } catch (err) {
         console.error(`Error loading group ${id} from Firestore:`, err);
       }
@@ -212,48 +154,30 @@ class FirestoreAdapter {
   }
 
   async getGroup(id) {
-    try {
-      if (this.isCompat) {
-        const docSnap = await this.db.collection(this.collectionName).doc(id).get();
-        if (docSnap && docSnap.exists) {
-          this.trackRecentGroup(id);
-          return this.normalizeGroup(id, docSnap.data());
-        }
-      } else {
-        const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-        const docRef = doc(this.db, this.collectionName, id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap && docSnap.exists()) {
-          this.trackRecentGroup(id);
-          return this.normalizeGroup(id, docSnap.data());
-        }
-      }
-    } catch (err) {
-      console.error(`Error fetching group ${id}:`, err);
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const docRef = doc(this.db, this.collectionName, id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      this.trackRecentGroup(id);
+      return docSnap.data();
     }
     return null;
   }
 
   async saveGroup(group) {
+    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     group.updatedAt = Date.now();
-    if (this.isCompat) {
-      await this.db.collection(this.collectionName).doc(group.id).set(group);
-    } else {
-      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const docRef = doc(this.db, this.collectionName, group.id);
-      await setDoc(docRef, group);
-    }
+    const docRef = doc(this.db, this.collectionName, group.id);
+    await setDoc(docRef, group);
     this.trackRecentGroup(group.id);
   }
 
   async deleteGroup(id) {
-    if (this.isCompat) {
-      await this.db.collection(this.collectionName).doc(id).delete();
-    } else {
-      const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const docRef = doc(this.db, this.collectionName, id);
-      await deleteDoc(docRef);
-    }
+    const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const docRef = doc(this.db, this.collectionName, id);
+    await deleteDoc(docRef);
+    
+    // Also remove from recent groups list in localStorage
     const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
     const updatedIds = recentIds.filter(x => x !== id);
     localStorage.setItem("fairshare_recent_groups", JSON.stringify(updatedIds));
@@ -284,39 +208,24 @@ class FirestoreAdapter {
     return newGroup;
   }
 
-  listenToGroup(id, callback, onError) {
-    if (this.isCompat) {
-      const docRef = this.db.collection(this.collectionName).doc(id);
-      const unsubscribe = docRef.onSnapshot((docSnap) => {
-        if (docSnap && docSnap.exists) {
-          callback(this.normalizeGroup(id, docSnap.data()));
+  listenToGroup(id, callback) {
+    let unsubscribe = () => {};
+    
+    // Set up real-time listener
+    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
+      const docRef = doc(this.db, this.collectionName, id);
+      unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          callback(docSnap.data());
         } else {
           callback(null);
         }
       }, (error) => {
         console.error("Firestore listen error:", error);
-        if (onError) onError(error);
       });
-      return () => unsubscribe();
-    } else {
-      let unsubscribe = () => {};
-      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
-        const docRef = doc(this.db, this.collectionName, id);
-        unsubscribe = onSnapshot(docRef, (docSnap) => {
-          if (docSnap && docSnap.exists()) {
-            callback(this.normalizeGroup(id, docSnap.data()));
-          } else {
-            callback(null);
-          }
-        }, (error) => {
-          console.error("Firestore listen error:", error);
-          if (onError) onError(error);
-        });
-      }).catch((err) => {
-        if (onError) onError(err);
-      });
-      return () => unsubscribe();
-    }
+    });
+
+    return () => unsubscribe();
   }
 
   trackRecentGroup(id) {
@@ -334,32 +243,13 @@ class SataSplitApp {
   constructor() {
     this.storage = new LocalStorageAdapter(); // Default
     this.activeGroup = null;
-    this.currentUser = localStorage.getItem("fairshare_my_name") || "";
+    this.currentUser = localStorage.getItem("fairshare_my_name") || "Ban";
     this.activeTab = "expenses";
     this.unsubscribeActiveListener = null;
     this.lastDeletedItem = null;
     this.settleReceiptDataUrl = "";
-    this.activeFilterPill = "all";
-    this.rateCache = {};
-    this.attachedReceiptBase64 = "";
-    this.isBatchSelectionMode = false;
-    this.selectedExpenseIds = new Set();
-    window.app = this;
     
     this.init();
-  }
-
-  setSyncStatus(isCloud) {
-    const badge = document.getElementById("sync-status-badge");
-    if (badge) {
-      if (isCloud) {
-        badge.className = "sync-badge cloud";
-        badge.querySelector(".label").textContent = "Cloud Synced";
-      } else {
-        badge.className = "sync-badge local";
-        badge.querySelector(".label").textContent = "Local Mode";
-      }
-    }
   }
 
   async init() {
@@ -372,44 +262,48 @@ class SataSplitApp {
       this.updateThemeIcons(false);
     }
 
-    // 2. Bind UI event listeners & install prompt immediately
-    this.setupEventListeners();
-    this.checkIosInstallPrompt();
-
-    // 3. Determine group to load
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlGroupId = urlParams.get("groupId");
-    const lastGroup = localStorage.getItem("fairshare_last_active_group");
-    const groupToLoad = urlGroupId || lastGroup || "default-group";
-
-    // 4. Start with LocalStorage immediately so UI loads instantly
-    this.switchGroup(groupToLoad);
-
-    // 5. Connect to Cloud (Firebase) asynchronously in background and upgrade storage adapter
-    this.initCloudConnection(groupToLoad);
-  }
-
-  async initCloudConnection(groupToLoad) {
+    // 2. Firebase check
     const firebaseConfig = window.FIREBASE_CONFIG;
     const hasConfig = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
     
     if (hasConfig) {
-      try {
-        const success = await initFirebase(firebaseConfig);
-        if (success && firestoreDb) {
-          this.storage = new FirestoreAdapter(firestoreDb);
-          this.setSyncStatus(true);
-          // Re-subscribe with Firestore adapter
-          this.switchGroup(groupToLoad);
-        } else {
-          console.warn("initFirebase returned false. Staying in Local Mode.");
-          this.setSyncStatus(false);
-        }
-      } catch (err) {
-        console.warn("Cloud connection error, running in Local Mode:", err);
-        this.setSyncStatus(false);
+      const success = await initFirebase(firebaseConfig);
+      if (success) {
+        this.storage = new FirestoreAdapter(firestoreDb);
+        const badge = document.getElementById("sync-status-badge");
+        badge.className = "sync-badge cloud";
+        badge.querySelector(".label").textContent = "Cloud Synced";
+      } else {
+        this.showToast("Failed to connect to Firebase. Running in Offline Local Mode.", "error");
       }
     }
+
+    // 3. Load active group (check URL params first)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlGroupId = urlParams.get("groupId");
+    
+    let groupToLoad = "default-group";
+    if (urlGroupId) {
+      const groupExists = await this.storage.getGroup(urlGroupId);
+      if (groupExists) {
+        groupToLoad = urlGroupId;
+      } else {
+        this.showToast("Shared group not found. Loading local default.", "error");
+        // Clean URL parameter if group doesn't exist
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } else {
+      // Load last active group from localStorage
+      const lastGroup = localStorage.getItem("fairshare_last_active_group");
+      if (lastGroup) {
+        const groupExists = await this.storage.getGroup(lastGroup);
+        if (groupExists) groupToLoad = lastGroup;
+      }
+    }
+
+    this.switchGroup(groupToLoad);
+    this.setupEventListeners();
+    this.checkIosInstallPrompt();
   }
 
   // --- Real-time state syncing ---
@@ -420,89 +314,51 @@ class SataSplitApp {
       this.unsubscribeActiveListener();
     }
 
-    // Start listening to the group
-    this.unsubscribeActiveListener = this.storage.listenToGroup(
-      groupId,
-      async (groupData) => {
-        if (groupData) {
-          this.activeGroup = groupData;
-          localStorage.setItem("fairshare_last_active_group", groupId);
-          
-          // Reset filters when switching groups
-          this.activeFilterPill = "all";
-          this.exitBatchSelectionMode();
-          const filterPills = document.querySelectorAll(".filter-pill");
-          filterPills.forEach(p => {
-            if (p.getAttribute("data-filter") === "all") {
-              p.classList.add("active");
-            } else {
-              p.classList.remove("active");
-            }
-          });
-          
-          // Ensure currentUser is preserved and not auto-assigned if unauthenticated
-          const savedName = localStorage.getItem("fairshare_my_name");
-          if (savedName && this.activeGroup.members && this.activeGroup.members.includes(savedName)) {
-            this.currentUser = savedName;
-          } else if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
-            localStorage.setItem("fairshare_my_name", this.currentUser);
-          } else {
-            this.currentUser = "";
-          }
-          
-          this.updateGroupSelects();
-          this.renderDashboard();
-          this.checkOnboarding();
+    // Start listening to the new group
+    this.unsubscribeActiveListener = this.storage.listenToGroup(groupId, async (groupData) => {
+      if (groupData) {
+        this.activeGroup = groupData;
+        localStorage.setItem("fairshare_last_active_group", groupId);
+        
+        // Ensure currentUser is still in the group, otherwise fallback to first member
+        const savedName = localStorage.getItem("fairshare_my_name");
+        if (savedName && this.activeGroup.members.includes(savedName)) {
+          this.currentUser = savedName;
+        } else if (!this.activeGroup.members.includes(this.currentUser)) {
+          this.currentUser = this.activeGroup.members[0] || "Ban";
+        }
+        
+        this.updateGroupSelects();
+        this.renderDashboard();
+        this.checkOnboarding();
+      } else {
+        // Group data is null (does not exist in storage)
+        if (groupId === "default-group") {
+          console.log("default-group not found. Creating it...");
+          const defaultGroup = {
+            id: "default-group",
+            name: "Apartment Share",
+            currency: "$",
+            members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
+            expenses: [],
+            settlements: [],
+            bankDetails: {
+              "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
+              "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
+              "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
+              "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
+              "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
+              "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
+            },
+            updatedAt: Date.now()
+          };
+          await this.storage.saveGroup(defaultGroup);
         } else {
-          // Group data is null (does not exist in storage)
-          if (groupId === "default-group") {
-            console.log("default-group not found. Creating it...");
-            const defaultGroup = {
-              id: "default-group",
-              name: "Apartment Share",
-              currency: "$",
-              members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
-              expenses: [],
-              settlements: [],
-              bankDetails: {
-                "Ban": { fullName: "Ban Lim", bankName: "Maybank", accountNumber: "1642234455", qrCode: "" },
-                "ED": { fullName: "ED Tan", bankName: "CIMB", accountNumber: "7065543210", qrCode: "" },
-                "Juin": { fullName: "Juin", bankName: "", accountNumber: "", qrCode: "" },
-                "Bin": { fullName: "Bin", bankName: "", accountNumber: "", qrCode: "" },
-                "Dennis": { fullName: "Dennis", bankName: "", accountNumber: "", qrCode: "" },
-                "Yan": { fullName: "Yan", bankName: "", accountNumber: "", qrCode: "" }
-              },
-              updatedAt: Date.now()
-            };
-            await this.storage.saveGroup(defaultGroup);
-            this.activeGroup = defaultGroup;
-            this.updateGroupSelects();
-            this.renderDashboard();
-            this.checkOnboarding();
-          } else {
-            this.showToast("Group not found. Redirecting to default group.", "error");
-            this.switchGroup("default-group");
-          }
-        }
-      },
-      (error) => {
-        console.warn("Firestore listener note:", error);
-        if (error && error.code === "permission-denied") {
-          this.showToast("Firestore Permission Denied: Check Security Rules in console.", "error");
-        }
-        // Safely draw from local memory fallback if activeGroup is empty, keeping Cloud Adapter active
-        if (!this.activeGroup) {
-          const localAdapter = new LocalStorageAdapter();
-          localAdapter.getGroup(groupId).then((localGroup) => {
-            if (localGroup && !this.activeGroup) {
-              this.activeGroup = localGroup;
-              this.updateGroupSelects();
-              this.renderDashboard();
-            }
-          });
+          this.showToast("Group not found. Redirecting to default group.", "error");
+          this.switchGroup("default-group");
         }
       }
-    );
+    });
 
     // Update URL parameter without reloading
     const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?groupId=${groupId}`;
@@ -649,47 +505,29 @@ class SataSplitApp {
   async updateGroupSelects() {
     const groupSelect = document.getElementById("group-select");
     const userSelect = document.getElementById("user-select");
-    if (!groupSelect || !userSelect) return;
     
-    // Populate Group dropdown
-    let allGroups = await this.storage.getGroups();
-    if (!allGroups || typeof allGroups !== "object") allGroups = {};
-
-    // Clear list right before drawing
+    // Clear list
     groupSelect.innerHTML = "";
     userSelect.innerHTML = "";
+
+    // Populate Group dropdown
+    const allGroups = await this.storage.getGroups();
     
     // Ensure activeGroup is in the list
     if (this.activeGroup && !allGroups[this.activeGroup.id]) {
       allGroups[this.activeGroup.id] = this.activeGroup;
     }
 
-    // Fallback if allGroups is still empty
-    if (Object.keys(allGroups).length === 0 && this.activeGroup) {
-      allGroups[this.activeGroup.id] = this.activeGroup;
-    }
-
     Object.values(allGroups).forEach(group => {
-      if (group && group.id && group.name) {
-        const opt = document.createElement("option");
-        opt.value = group.id;
-        opt.textContent = group.name;
-        opt.selected = (group.id === this.activeGroup?.id);
-        groupSelect.appendChild(opt);
-      }
+      const opt = document.createElement("option");
+      opt.value = group.id;
+      opt.textContent = group.name;
+      opt.selected = (group.id === this.activeGroup?.id);
+      groupSelect.appendChild(opt);
     });
 
     // Populate Active User dropdown
-    if (this.activeGroup && Array.isArray(this.activeGroup.members) && this.activeGroup.members.length > 0) {
-      const savedName = localStorage.getItem("fairshare_my_name");
-      if (savedName && this.activeGroup.members.includes(savedName)) {
-        this.currentUser = savedName;
-      } else if (!this.currentUser || !this.activeGroup.members.includes(this.currentUser)) {
-        this.currentUser = this.activeGroup.members[0];
-        localStorage.setItem("fairshare_my_name", this.currentUser);
-      }
-
-      userSelect.innerHTML = "";
+    if (this.activeGroup) {
       this.activeGroup.members.forEach(member => {
         const opt = document.createElement("option");
         opt.value = member;
@@ -950,28 +788,14 @@ class SataSplitApp {
                           (exp.category && exp.category.toLowerCase().includes(searchVal)) ||
                           exp.paidBy.toLowerCase().includes(searchVal);
       const matchCat = categoryVal === "all" || exp.category === categoryVal;
-      
-      let matchPill = true;
-      if (this.activeFilterPill === "paid-by-me") {
-        matchPill = exp.paidBy === this.currentUser;
-      } else if (this.activeFilterPill === "unequal") {
-        matchPill = exp.splitType && exp.splitType !== "equal";
-      } else if (this.activeFilterPill === "high-value") {
-        matchPill = (parseFloat(exp.amount) || 0) > 100;
-      } else if (this.activeFilterPill === "this-month") {
-        const expDate = new Date(exp.date);
-        const now = new Date();
-        matchPill = expDate.getFullYear() === now.getFullYear() && expDate.getMonth() === now.getMonth();
-      }
-
-      return matchSearch && matchCat && matchPill;
+      return matchSearch && matchCat;
     });
 
     if (filtered.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h.007v.008H3.75V4.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3 7.5h18M5.25 7.5V16.5a1.5 1.5 0 0 0 1.5 1.5h10.5a1.5 1.5 0 0 0 1.5-1.5V7.5M9 10.5h6"></path></svg>
-          <p>No matching expenses found.</p>
+          <p>No expenses found. Click "Add Expense" to get started!</p>
         </div>
       `;
       return;
@@ -993,8 +817,7 @@ class SataSplitApp {
 
     filtered.forEach(exp => {
       const card = document.createElement("div");
-      const isSelected = this.selectedExpenseIds.has(exp.id);
-      card.className = `expense-card ${this.isBatchSelectionMode ? "batch-selectable" : ""} ${isSelected ? "batch-selected" : ""}`;
+      card.className = "expense-card";
       
       const meta = categoryMeta[exp.category] || categoryMeta.other;
       const dateObj = new Date(exp.date);
@@ -1045,11 +868,6 @@ class SataSplitApp {
       }
 
       card.innerHTML = `
-        ${this.isBatchSelectionMode ? `
-          <div style="display: flex; align-items: center; padding-right: 0.5rem;">
-            <input type="checkbox" class="expense-batch-checkbox" data-id="${exp.id}" ${isSelected ? "checked" : ""}>
-          </div>
-        ` : ""}
         <div class="expense-info">
           <div class="category-icon" style="background-color: ${meta.bg}; color: ${meta.color};">${meta.icon}</div>
           <div class="expense-text">
@@ -1058,7 +876,6 @@ class SataSplitApp {
               Paid by <strong>${exp.paidBy}</strong>
               <span class="expense-meta-dot">•</span>
               ${formattedDate}
-              ${exp.hasReceipt ? `<br><span class="receipt-badge-card btn-view-receipt" data-id="${exp.id}">📷 View Receipt</span>` : ""}
             </div>
           </div>
         </div>
@@ -1074,86 +891,30 @@ class SataSplitApp {
             <div style="font-weight: 700;">${shareText}</div>
           </div>
           
-          ${!this.isBatchSelectionMode ? `
-            <div class="expense-actions">
-              <button class="action-btn-sm btn-edit-expense" data-id="${exp.id}" title="Edit Expense">✏️</button>
-              <button class="action-btn-sm btn-delete-expense" data-id="${exp.id}" title="Delete Expense">🗑️</button>
-            </div>
-          ` : ""}
+          <div class="expense-actions">
+            <button class="action-btn-sm btn-edit-expense" data-id="${exp.id}" title="Edit Expense">✏️</button>
+            <button class="action-btn-sm btn-delete-expense" data-id="${exp.id}" title="Delete Expense">🗑️</button>
+          </div>
         </div>
       `;
 
-      if (!this.isBatchSelectionMode) {
-        // Event handlers for actions
-        const btnEdit = card.querySelector(".btn-edit-expense");
-        if (btnEdit) {
-          btnEdit.addEventListener("click", (e) => {
-            e.stopPropagation();
-            this.openExpenseForm(exp);
-          });
-        }
+      // Event handlers for actions
+      card.querySelector(".btn-edit-expense").addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openExpenseForm(exp);
+      });
 
-        const btnDel = card.querySelector(".btn-delete-expense");
-        if (btnDel) {
-          btnDel.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (confirm(`Delete the expense "${exp.description}"?`)) {
-              this.deleteExpense(exp.id);
-            }
-          });
+      card.querySelector(".btn-delete-expense").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete the expense "${exp.description}"?`)) {
+          this.deleteExpense(exp.id);
         }
-      }
-
-      if (exp.hasReceipt) {
-        const btnView = card.querySelector(".btn-view-receipt");
-        if (btnView) {
-          btnView.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            this.vibrate(10);
-            
-            const lightbox = document.getElementById("receipt-lightbox-dialog");
-            const lightboxImg = document.getElementById("receipt-lightbox-img");
-            const lightboxTitle = document.getElementById("receipt-lightbox-title");
-            
-            if (lightbox && lightboxImg && lightboxTitle) {
-              lightboxImg.style.display = "none";
-              lightboxImg.src = "";
-              lightboxTitle.textContent = `Loading Receipt for "${exp.description}"...`;
-              lightbox.showModal();
-              
-              const imageBase64 = await this.getReceiptImage(exp.id);
-              if (imageBase64) {
-                lightboxImg.src = imageBase64;
-                lightboxImg.style.display = "block";
-                lightboxTitle.textContent = `Receipt Proof: "${exp.description}"`;
-              } else {
-                lightboxTitle.textContent = `⚠️ Receipt Image Not Found (Purged or missing)`;
-              }
-            }
-          });
-        }
-      }
+      });
       
-      // Card click handling
-      if (this.isBatchSelectionMode) {
-        card.addEventListener("click", () => {
-          this.vibrate(10);
-          if (this.selectedExpenseIds.has(exp.id)) {
-            this.selectedExpenseIds.delete(exp.id);
-            card.classList.remove("batch-selected");
-          } else {
-            this.selectedExpenseIds.add(exp.id);
-            card.classList.add("batch-selected");
-          }
-          const chk = card.querySelector(".expense-batch-checkbox");
-          if (chk) chk.checked = this.selectedExpenseIds.has(exp.id);
-          this.updateBatchSelectionCount();
-        });
-      } else {
-        card.addEventListener("click", () => {
-          this.openExpenseForm(exp);
-        });
-      }
+      // Clicking the card opens detail log
+      card.addEventListener("click", () => {
+        this.openExpenseForm(exp);
+      });
 
       container.appendChild(card);
     });
@@ -1161,44 +922,8 @@ class SataSplitApp {
 
   // --- Actions & Mutations ---
 
-  async handleReceiptAttachment(expenseId) {
-    if (this.attachedReceiptBase64) {
-      await this.saveReceiptImage(expenseId, this.attachedReceiptBase64);
-      
-      this.activeGroup.receiptList = this.activeGroup.receiptList || [];
-      this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => item.expenseId !== expenseId);
-      this.activeGroup.receiptList.push({ expenseId, timestamp: Date.now() });
-      
-      // Auto-purge oldest if > 50
-      while (this.activeGroup.receiptList.length > 50) {
-        const oldest = this.activeGroup.receiptList.shift();
-        await this.deleteReceiptImage(oldest.expenseId);
-        
-        const oldExp = this.activeGroup.expenses.find(e => e.id === oldest.expenseId);
-        if (oldExp) {
-          delete oldExp.hasReceipt;
-        }
-      }
-      
-      this.attachedReceiptBase64 = "";
-      const indicator = document.getElementById("expense-receipt-indicator");
-      if (indicator) indicator.style.display = "none";
-      return true;
-    }
-    return false;
-  }
-
   async addExpense(expenseData) {
     if (!this.activeGroup) return;
-    if (!Array.isArray(this.activeGroup.expenses)) {
-      this.activeGroup.expenses = [];
-    }
-
-    if (this.attachedReceiptBase64) {
-      expenseData.hasReceipt = true;
-      await this.handleReceiptAttachment(expenseData.id);
-    }
-
     this.activeGroup.expenses.push(expenseData);
     this.logActivity(`added expense "${expenseData.description}" of ${this.activeGroup.currency}${parseFloat(expenseData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
@@ -1207,18 +932,9 @@ class SataSplitApp {
 
   async updateExpense(id, updatedData) {
     if (!this.activeGroup) return;
-    if (!Array.isArray(this.activeGroup.expenses)) {
-      this.activeGroup.expenses = [];
-    }
     const index = this.activeGroup.expenses.findIndex(e => e.id === id);
     if (index !== -1) {
       const oldDesc = this.activeGroup.expenses[index].description;
-      
-      if (this.attachedReceiptBase64) {
-        updatedData.hasReceipt = true;
-        await this.handleReceiptAttachment(id);
-      }
-
       this.activeGroup.expenses[index] = { ...this.activeGroup.expenses[index], ...updatedData };
       this.logActivity(`updated expense "${oldDesc}" to "${updatedData.description}" (${this.activeGroup.currency}${parseFloat(updatedData.amount).toFixed(2)})`, false);
       await this.triggerStateSave();
@@ -1228,22 +944,10 @@ class SataSplitApp {
 
   async deleteExpense(id) {
     if (!this.activeGroup) return;
-    if (!Array.isArray(this.activeGroup.expenses)) {
-      this.activeGroup.expenses = [];
-    }
     const exp = this.activeGroup.expenses.find(e => e.id === id);
     if (!exp) return;
     
     this.lastDeletedItem = { type: "expense", data: exp };
-    
-    if (exp.hasReceipt) {
-      const receiptData = await this.getReceiptImage(id);
-      this.lastDeletedItem.receiptData = receiptData;
-      await this.deleteReceiptImage(id);
-      if (this.activeGroup.receiptList) {
-        this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => item.expenseId !== id);
-      }
-    }
     
     this.activeGroup.expenses = this.activeGroup.expenses.filter(e => e.id !== id);
     this.logActivity(`deleted expense "${exp.description}"`, false);
@@ -1254,9 +958,6 @@ class SataSplitApp {
 
   async addSettlement(settlementData) {
     if (!this.activeGroup) return;
-    if (!Array.isArray(this.activeGroup.settlements)) {
-      this.activeGroup.settlements = [];
-    }
     this.activeGroup.settlements.push(settlementData);
     this.logActivity(`recorded settlement: paid ${settlementData.recipient} ${this.activeGroup.currency}${parseFloat(settlementData.amount).toFixed(2)}`, false);
     await this.triggerStateSave();
@@ -1290,20 +991,6 @@ class SataSplitApp {
     // Reset Form
     form.reset();
     
-    this.attachedReceiptBase64 = "";
-    const indicator = document.getElementById("expense-receipt-indicator");
-    if (indicator) {
-      indicator.style.display = "none";
-      if (expenseToEdit && expenseToEdit.hasReceipt) {
-        indicator.textContent = "📎 Receipt Photo Attached";
-        indicator.style.display = "inline-block";
-        indicator.style.color = "var(--primary-color)";
-      } else {
-        indicator.textContent = "📎 Image Attached";
-        indicator.style.color = "var(--success-color)";
-      }
-    }
-
     document.getElementById("expense-desc-suggestions").innerHTML = "";
     document.getElementById("expense-desc-suggestions").style.display = "none";
     
@@ -1339,32 +1026,11 @@ class SataSplitApp {
       expIdInput.value = "";
       // Default date to today
       dateInput.value = new Date().toISOString().substring(0, 10);
-      if (this.currentUser && this.activeGroup.members && this.activeGroup.members.includes(this.currentUser)) {
-        paidBySelect.value = this.currentUser;
-      } else if (this.activeGroup.members && this.activeGroup.members.length > 0) {
-        paidBySelect.value = this.activeGroup.members[0];
-      }
+      paidBySelect.value = this.currentUser;
       
       // Set defaults
-      const defaultCat = form.querySelector('input[name="expense-category"][value="meals"]');
-      if (defaultCat) defaultCat.checked = true;
-      const defaultSplit = form.querySelector('input[name="split-type"][value="equal"]');
-      if (defaultSplit) defaultSplit.checked = true;
-    }
-
-    // Reset Currency Converter Form State
-    const converterToggle = document.getElementById("expense-convert-currency-toggle");
-    const converterSection = document.getElementById("currency-converter-section");
-    if (converterToggle && converterSection) {
-      converterToggle.checked = false;
-      converterSection.style.display = "none";
-      const fAmount = document.getElementById("expense-foreign-amount");
-      if (fAmount) fAmount.value = "";
-      
-      const rateDisplay = document.getElementById("expense-exchange-rate-display");
-      const previewDisplay = document.getElementById("expense-converted-preview");
-      if (rateDisplay) rateDisplay.textContent = "-";
-      if (previewDisplay) previewDisplay.textContent = "-";
+      form.querySelector('input[name="expense-category"][value="meals"]').checked = true;
+      form.querySelector('input[name="split-type"][value="equal"]').checked = true;
     }
 
     this.renderSplitFormInputs(expenseToEdit);
@@ -1842,15 +1508,6 @@ class SataSplitApp {
   // --- Helper notifications ---
 
   showToast(message, type = "success", actionText = null, actionCallback = null) {
-    // Tactile haptic feedback on updates (12ms for success, 30ms for errors)
-    if (type === "success") {
-      this.vibrate(12);
-    } else if (type === "error" || type === "warning") {
-      this.vibrate(30);
-    } else {
-      this.vibrate(15);
-    }
-
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
@@ -1886,7 +1543,7 @@ class SataSplitApp {
     const duration = actionText ? 5000 : 3000;
     setTimeout(() => {
       if (toast.parentNode) {
-        toast.style.animation = "slide-down-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
+        toast.style.animation = "slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards";
         setTimeout(() => toast.remove(), 300);
       }
     }, duration);
@@ -1895,440 +1552,13 @@ class SataSplitApp {
   updateThemeIcons(isLight) {
     const sun = document.querySelector(".sun-icon");
     const moon = document.querySelector(".moon-icon");
-    if (sun && moon) {
-      if (isLight) {
-        sun.style.display = "block";
-        moon.style.display = "none";
-      } else {
-        sun.style.display = "none";
-        moon.style.display = "block";
-      }
-    }
-  }
-
-  vibrate(duration = 15) {
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      try {
-        navigator.vibrate(duration);
-      } catch (err) {
-        // Ignore silent vibration fails
-      }
-    }
-  }
-
-  mapSymbolToCode(symbol) {
-    const clean = (symbol || "").trim().toUpperCase();
-    if (clean === "RM" || clean === "MYR") return "MYR";
-    if (clean === "$" || clean === "USD") return "USD";
-    if (clean === "€" || clean === "EUR") return "EUR";
-    if (clean === "£" || clean === "GBP") return "GBP";
-    if (clean === "SGD") return "SGD";
-    if (clean === "THB" || clean === "฿") return "THB";
-    if (clean === "IDR") return "IDR";
-    if (clean === "VND") return "VND";
-    if (clean === "PHP") return "PHP";
-    if (clean === "JPY" || clean === "🇯🇵") return "JPY";
-    if (clean === "AUD") return "AUD";
-    return "USD"; // Default fallback
-  }
-
-  async fetchExchangeRate(fromCurrency, toCurrency) {
-    this.rateCache = this.rateCache || {};
-    const cacheKey = `${fromCurrency}_${toCurrency}`;
-    
-    // Cache rates for 1 hour to avoid rate limit / slow responses
-    const cached = this.rateCache[cacheKey];
-    if (cached && (Date.now() - cached.timestamp < 3600000)) {
-      return cached.rate;
-    }
-
-    try {
-      const res = await fetch(`https://open.er-api.com/v6/latest/${fromCurrency}`);
-      if (!res.ok) throw new Error("API network error");
-      const data = await res.json();
-      if (data && data.rates && data.rates[toCurrency]) {
-        const rate = data.rates[toCurrency];
-        this.rateCache[cacheKey] = {
-          rate,
-          timestamp: Date.now()
-        };
-        return rate;
-      }
-      throw new Error("Currency rate not found in API response");
-    } catch (err) {
-      console.error("Exchange rate API fetch failed: ", err);
-      // Local static estimate fallbacks in case user is offline or API fails
-      const fallbacks = {
-        "SGD_MYR": 3.45, "MYR_SGD": 0.29,
-        "USD_MYR": 4.65, "MYR_USD": 0.215,
-        "THB_MYR": 0.13, "MYR_THB": 7.7,
-        "EUR_MYR": 5.0, "MYR_EUR": 0.2,
-        "GBP_MYR": 5.8, "MYR_GBP": 0.17
-      };
-      
-      if (fallbacks[cacheKey]) return fallbacks[cacheKey];
-      if (fallbacks[`${toCurrency}_${fromCurrency}`]) return 1 / fallbacks[`${toCurrency}_${fromCurrency}`];
-      return 1.0;
-    }
-  }
-
-  async calculateForeignCurrency() {
-    const toggle = document.getElementById("expense-convert-currency-toggle");
-    const section = document.getElementById("currency-converter-section");
-    if (!toggle || !section) return;
-
-    if (!toggle.checked) {
-      section.style.display = "none";
-      return;
-    }
-
-    section.style.display = "flex";
-    const foreignCurrency = document.getElementById("expense-foreign-currency").value;
-    const foreignAmount = parseFloat(document.getElementById("expense-foreign-amount").value) || 0;
-    const baseCurrencySymbol = this.activeGroup ? this.activeGroup.currency : "RM";
-    const baseCurrencyCode = this.mapSymbolToCode(baseCurrencySymbol);
-    
-    const rateDisplay = document.getElementById("exchange-rate-value");
-    const previewDisplay = document.getElementById("converted-amount-preview");
-    const mainAmountInput = document.getElementById("expense-amount");
-
-    if (foreignAmount <= 0) {
-      rateDisplay.textContent = "-";
-      previewDisplay.textContent = "-";
-      return;
-    }
-
-    rateDisplay.textContent = "Fetching...";
-    const rate = await this.fetchExchangeRate(foreignCurrency, baseCurrencyCode);
-    const converted = foreignAmount * rate;
-
-    rateDisplay.textContent = `1 ${foreignCurrency} = ${rate.toFixed(4)} ${baseCurrencyCode}`;
-    previewDisplay.textContent = `${baseCurrencySymbol}${converted.toFixed(2)}`;
-    
-    // Update main input value
-    mainAmountInput.value = converted.toFixed(2);
-    
-    // Trigger split values redraw
-    this.renderSplitFormInputs();
-  }
-
-  exportLedgerToCSV() {
-    this.vibrate(15);
-    if (!this.activeGroup || !this.activeGroup.expenses || this.activeGroup.expenses.length === 0) {
-      this.showToast("No expenses to export!", "warning");
-      return;
-    }
-
-    const headers = ["Date", "Description", "Category", "Amount", "Paid By", "Split Method", "Split Details"];
-    const rows = this.activeGroup.expenses.map(exp => {
-      // Escape strings containing quotes or commas
-      const desc = `"${exp.description.replace(/"/g, '""')}"`;
-      const cat = exp.category;
-      const amt = exp.amount.toFixed(2);
-      const paidBy = exp.paidBy;
-      const method = exp.splitType;
-      const date = exp.date;
-      
-      // Split shares detailed string format: "Ban: RM10.00, ED: RM20.00"
-      let splitDetails = "";
-      if (exp.shares) {
-        splitDetails = Object.entries(exp.shares)
-          .map(([mem, share]) => `${mem}: ${this.activeGroup.currency}${parseFloat(share).toFixed(2)}`)
-          .join(" | ");
-      }
-      const splitDetailsEscaped = `"${splitDetails.replace(/"/g, '""')}"`;
-
-      return [date, desc, cat, amt, paidBy, method, splitDetailsEscaped];
-    });
-
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${this.activeGroup.name || "Group"}_Ledger.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  async saveReceiptImage(expenseId, base64Data) {
-    if (!this.activeGroup) return;
-    const groupId = this.activeGroup.id;
-    if (this.storage instanceof LocalStorageAdapter) {
-      localStorage.setItem(`fairshare_receipt_${groupId}_${expenseId}`, base64Data);
+    if (isLight) {
+      sun.style.display = "block";
+      moon.style.display = "none";
     } else {
-      try {
-        const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
-        await setDoc(docRef, { image: base64Data, updatedAt: Date.now() });
-      } catch (err) {
-        console.error("Firestore save receipt error:", err);
-      }
+      sun.style.display = "none";
+      moon.style.display = "block";
     }
-  }
-
-  async getReceiptImage(expenseId) {
-    if (!this.activeGroup) return null;
-    const groupId = this.activeGroup.id;
-    if (this.storage instanceof LocalStorageAdapter) {
-      return localStorage.getItem(`fairshare_receipt_${groupId}_${expenseId}`);
-    } else {
-      try {
-        const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          return snap.data().image;
-        }
-      } catch (err) {
-        console.error("Firestore get receipt error:", err);
-      }
-      return null;
-    }
-  }
-
-  async deleteReceiptImage(expenseId) {
-    if (!this.activeGroup) return;
-    const groupId = this.activeGroup.id;
-    if (this.storage instanceof LocalStorageAdapter) {
-      localStorage.removeItem(`fairshare_receipt_${groupId}_${expenseId}`);
-    } else {
-      try {
-        const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-        const docRef = doc(this.storage.db, "fairshare_groups", groupId, "receipts", expenseId);
-        await deleteDoc(docRef);
-      } catch (err) {
-        console.error("Firestore delete receipt error:", err);
-      }
-    }
-  }
-
-  async resetAllGroupRecords() {
-    if (!this.activeGroup) return;
-    const groupName = this.activeGroup.name;
-
-    if (!confirm(`ARE YOU ABSOLUTELY SURE?\n\nThis will permanently delete ALL expenses, settlements, receipt photos, and activity history for "${groupName}".\n\nMembers list and group settings will be kept. This action cannot be undone.`)) {
-      return;
-    }
-
-    // Delete all attached receipt subcollection documents safely
-    if (this.activeGroup.receiptList && this.activeGroup.receiptList.length > 0) {
-      for (const item of this.activeGroup.receiptList) {
-        try {
-          await this.deleteReceiptImage(item.expenseId);
-        } catch (e) {
-          console.warn("Receipt subdoc cleanup skipped:", e);
-        }
-      }
-    }
-
-    this.activeGroup.expenses = [];
-    this.activeGroup.settlements = [];
-    this.activeGroup.activities = [];
-    this.activeGroup.receiptList = [];
-
-    this.logActivity(`reset all group transaction records`, false);
-    await this.triggerStateSave();
-    
-    this.exitBatchSelectionMode();
-    this.showToast(`All records for "${groupName}" have been reset!`, "success");
-    
-    const dialog = document.getElementById("reset-records-dialog");
-    if (dialog) dialog.close();
-    const groupDialog = document.getElementById("group-dialog");
-    if (groupDialog) groupDialog.close();
-  }
-
-  async clearSettlementsOnly() {
-    if (!this.activeGroup) return;
-    if (!this.activeGroup.settlements || this.activeGroup.settlements.length === 0) {
-      this.showToast("No settlements to clear!", "info");
-      return;
-    }
-
-    if (!confirm("Clear all settled payment records? Bill expenses will remain untouched.")) {
-      return;
-    }
-
-    this.activeGroup.settlements = [];
-    this.logActivity("cleared all payment settlements history", false);
-    await this.triggerStateSave();
-    this.showToast("Settlement records cleared!", "success");
-
-    const dialog = document.getElementById("reset-records-dialog");
-    if (dialog) dialog.close();
-  }
-
-  toggleBatchSelectionMode(enabled) {
-    this.isBatchSelectionMode = enabled;
-    this.selectedExpenseIds.clear();
-    
-    const bar = document.getElementById("batch-action-bar");
-    if (bar) {
-      bar.style.display = enabled ? "flex" : "none";
-    }
-    
-    this.updateBatchSelectionCount();
-    this.renderDashboard();
-    
-    const dialog = document.getElementById("reset-records-dialog");
-    if (dialog && enabled) dialog.close();
-  }
-
-  exitBatchSelectionMode() {
-    this.toggleBatchSelectionMode(false);
-  }
-
-  updateBatchSelectionCount() {
-    const countSpan = document.getElementById("batch-selected-count");
-    if (countSpan) {
-      countSpan.textContent = `${this.selectedExpenseIds.size} Selected`;
-    }
-  }
-
-  async deleteSelectedExpenses() {
-    if (this.selectedExpenseIds.size === 0) {
-      this.showToast("No expenses selected!", "warning");
-      return;
-    }
-
-    const count = this.selectedExpenseIds.size;
-    if (!confirm(`Delete the ${count} selected expense(s)? This action cannot be undone.`)) {
-      return;
-    }
-
-    for (const id of this.selectedExpenseIds) {
-      const exp = this.activeGroup.expenses.find(e => e.id === id);
-      if (exp && exp.hasReceipt) {
-        await this.deleteReceiptImage(id);
-      }
-    }
-
-    this.activeGroup.expenses = this.activeGroup.expenses.filter(e => !this.selectedExpenseIds.has(e.id));
-    if (this.activeGroup.receiptList) {
-      this.activeGroup.receiptList = this.activeGroup.receiptList.filter(item => !this.selectedExpenseIds.has(item.expenseId));
-    }
-
-    this.logActivity(`deleted ${count} selected expense(s) in bulk`, false);
-    await this.triggerStateSave();
-    this.showToast(`Deleted ${count} expense(s).`, "success");
-
-    this.exitBatchSelectionMode();
-  }
-
-  switchTab(tabName) {
-    this.vibrate(10);
-    this.activeTab = tabName;
-
-    // Desktop Tab Buttons
-    const tabExpenses = document.getElementById("tab-btn-expenses");
-    const tabBalances = document.getElementById("tab-btn-balances");
-    const tabActivity = document.getElementById("tab-btn-activity");
-    const tabNotes = document.getElementById("tab-btn-notes");
-    const tabManage = document.getElementById("tab-btn-manage");
-    
-    // Tab Contents
-    const contentExpenses = document.getElementById("tab-content-expenses");
-    const contentBalances = document.getElementById("tab-content-balances");
-    const contentActivity = document.getElementById("tab-content-activity");
-    const contentNotes = document.getElementById("tab-content-notes");
-    const contentManage = document.getElementById("tab-content-manage");
-
-    const tabsMap = {
-      expenses: { btn: tabExpenses, content: contentExpenses },
-      balances: { btn: tabBalances, content: contentBalances },
-      activity: { btn: tabActivity, content: contentActivity },
-      notes: { btn: tabNotes, content: contentNotes },
-      manage: { btn: tabManage, content: contentManage }
-    };
-
-    Object.keys(tabsMap).forEach(key => {
-      const item = tabsMap[key];
-      if (item.btn) {
-        if (key === tabName) item.btn.classList.add("active");
-        else item.btn.classList.remove("active");
-      }
-      if (item.content) {
-        if (key === tabName) item.content.classList.add("active");
-        else item.content.classList.remove("active");
-      }
-    });
-
-    // Mobile Bottom Nav Items Sync
-    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navItem => {
-      if (navItem.getAttribute("data-tab") === tabName) {
-        navItem.classList.add("active");
-      } else {
-        navItem.classList.remove("active");
-      }
-    });
-
-    if (tabName === "activity") {
-      this.renderActivityFeed();
-    } else if (tabName === "notes") {
-      this.renderNotesWall();
-    } else if (tabName === "manage") {
-      this.populatePageGroupSettings();
-    }
-  }
-
-  populatePageGroupSettings() {
-    const nameInput = document.getElementById("page-group-name-input");
-    const currencySelect = document.getElementById("page-group-currency-input");
-    const list = document.getElementById("page-group-members-list");
-
-    if (!nameInput || !currencySelect || !list || !this.activeGroup) return;
-
-    nameInput.value = this.activeGroup.name;
-    currencySelect.value = this.activeGroup.currency;
-    
-    list.innerHTML = "";
-    
-    // Check which members are referenced in expenses or settlements
-    const lockedMembers = new Set();
-    if (this.activeGroup.expenses) {
-      this.activeGroup.expenses.forEach(e => {
-        lockedMembers.add(e.paidBy);
-        if (e.splits) Object.keys(e.splits).forEach(m => lockedMembers.add(m));
-      });
-    }
-    if (this.activeGroup.settlements) {
-      this.activeGroup.settlements.forEach(s => {
-        lockedMembers.add(s.payer);
-        lockedMembers.add(s.recipient);
-      });
-    }
-
-    this.activeGroup.members.forEach(m => {
-      const row = document.createElement("div");
-      row.className = "split-member-row";
-      
-      const isLocked = lockedMembers.has(m);
-      const actionHtml = isLocked 
-        ? `<span style="font-size:0.75rem; color:var(--text-muted);">locked (has bills)</span>`
-        : `<button type="button" class="action-btn-sm btn-remove-member-page" data-member="${m}" style="color:var(--danger-color);">Remove</button>`;
-
-      row.innerHTML = `
-        <div style="font-weight: 500;">${m}</div>
-        <div>${actionHtml}</div>
-      `;
-
-      if (!isLocked) {
-        row.querySelector(".btn-remove-member-page").addEventListener("click", () => {
-          this.activeGroup.members = this.activeGroup.members.filter(mem => mem !== m);
-          this.populatePageGroupSettings();
-        });
-      }
-
-      list.appendChild(row);
-    });
-  }
-
-  openGroupSettingsModal() {
-    this.populateGroupSettingsForm();
-    document.getElementById("group-dialog").showModal();
   }
 
   // --- Event Listeners Binder ---
@@ -2340,17 +1570,11 @@ class SataSplitApp {
     });
 
     // 2. Active User Selector
-    const userSelect = document.getElementById("user-select");
-    if (userSelect) {
-      userSelect.addEventListener("change", (e) => {
-        const chosen = e.target.value;
-        if (!chosen) return;
-        this.currentUser = chosen;
-        localStorage.setItem("fairshare_my_name", chosen);
-        this.updateGroupSelects();
-        this.renderDashboard();
-      });
-    }
+    document.getElementById("user-select").addEventListener("change", (e) => {
+      this.currentUser = e.target.value;
+      localStorage.setItem("fairshare_my_name", e.target.value);
+      this.renderDashboard();
+    });
 
     // 3. Theme Toggle
     document.getElementById("theme-toggle").addEventListener("click", () => {
@@ -2358,190 +1582,70 @@ class SataSplitApp {
       localStorage.setItem("fairshare_theme", isLight ? "light" : "dark");
       this.updateThemeIcons(isLight);
     });
-    
-    // 4. Tab Navigation (Desktop & Mobile Nav)
+
+    // 4. Tab Navigation
     const tabExpenses = document.getElementById("tab-btn-expenses");
     const tabBalances = document.getElementById("tab-btn-balances");
     const tabActivity = document.getElementById("tab-btn-activity");
     const tabNotes = document.getElementById("tab-btn-notes");
+    const contentExpenses = document.getElementById("tab-content-expenses");
+    const contentBalances = document.getElementById("tab-content-balances");
+    const contentActivity = document.getElementById("tab-content-activity");
+    const contentNotes = document.getElementById("tab-content-notes");
 
-    const tabManage = document.getElementById("tab-btn-manage");
-
-    if (tabExpenses) tabExpenses.addEventListener("click", () => this.switchTab("expenses"));
-    if (tabBalances) tabBalances.addEventListener("click", () => this.switchTab("balances"));
-    if (tabActivity) tabActivity.addEventListener("click", () => this.switchTab("activity"));
-    if (tabNotes) tabNotes.addEventListener("click", () => this.switchTab("notes"));
-    if (tabManage) tabManage.addEventListener("click", () => this.switchTab("manage"));
-
-    // Mobile Bottom Navigation items
-    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navBtn => {
-      navBtn.addEventListener("click", () => {
-        const tab = navBtn.getAttribute("data-tab");
-        this.switchTab(tab);
-      });
+    tabExpenses.addEventListener("click", () => {
+      tabExpenses.classList.add("active");
+      tabBalances.classList.remove("active");
+      tabActivity.classList.remove("active");
+      tabNotes.classList.remove("active");
+      contentExpenses.classList.add("active");
+      contentBalances.classList.remove("active");
+      contentActivity.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "expenses";
     });
 
-    const bnavManage = document.getElementById("bnav-manage");
-    if (bnavManage) {
-      bnavManage.addEventListener("click", () => {
-        this.vibrate(10);
-        this.switchTab("manage");
-      });
-    }
+    tabBalances.addEventListener("click", () => {
+      tabBalances.classList.add("active");
+      tabExpenses.classList.remove("active");
+      tabActivity.classList.remove("active");
+      tabNotes.classList.remove("active");
+      contentBalances.classList.add("active");
+      contentExpenses.classList.remove("active");
+      contentActivity.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "balances";
+    });
 
-    // Page Manage Group Form Submit
-    const pageGroupForm = document.getElementById("page-group-form");
-    if (pageGroupForm) {
-      pageGroupForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const newName = document.getElementById("page-group-name-input").value.trim();
-        const newCurrency = document.getElementById("page-group-currency-input").value;
-        if (!newName) return;
+    tabActivity.addEventListener("click", () => {
+      tabActivity.classList.add("active");
+      tabExpenses.classList.remove("active");
+      tabBalances.classList.remove("active");
+      tabNotes.classList.remove("active");
+      contentActivity.classList.add("active");
+      contentExpenses.classList.remove("active");
+      contentBalances.classList.remove("active");
+      contentNotes.classList.remove("active");
+      this.activeTab = "activity";
+      this.renderActivityFeed();
+    });
 
-        this.activeGroup.name = newName;
-        this.activeGroup.currency = newCurrency;
-        this.logActivity(`updated group name to "${newName}" (${newCurrency})`, false);
-        await this.triggerStateSave();
-        this.renderDashboard();
-        this.showToast("Group settings saved!", "success");
-      });
-    }
-
-    // Page Add Member button
-    const pageBtnAddMember = document.getElementById("page-btn-add-member-item");
-    if (pageBtnAddMember) {
-      pageBtnAddMember.addEventListener("click", () => {
-        const input = document.getElementById("page-new-member-name");
-        const name = input ? input.value.trim() : "";
-        if (!name) return;
-        if (this.activeGroup.members.includes(name)) {
-          this.showToast(`"${name}" is already in the group!`, "warning");
-          return;
-        }
-        this.activeGroup.members.push(name);
-        if (input) input.value = "";
-        this.populatePageGroupSettings();
-      });
-    }
-
-    // Page Group Actions
-    const pageBtnCreate = document.getElementById("page-btn-create-new-group");
-    if (pageBtnCreate) {
-      pageBtnCreate.addEventListener("click", () => this.createNewGroup());
-    }
-
-    const pageBtnReset = document.getElementById("page-btn-reset-group-records");
-    if (pageBtnReset) {
-      pageBtnReset.addEventListener("click", () => {
-        this.vibrate(10);
-        const modal = document.getElementById("reset-records-dialog");
-        if (modal) modal.showModal();
-      });
-    }
-
-    const pageBtnDelete = document.getElementById("page-btn-delete-active-group");
-    if (pageBtnDelete) {
-      pageBtnDelete.addEventListener("click", () => this.deleteActiveGroup());
-    }
-
-    // Mobile FAB Add Expense Button
-    const fabAdd = document.getElementById("fab-add-expense");
-    if (fabAdd) {
-      fabAdd.addEventListener("click", () => {
-        this.vibrate(15);
-        this.openExpenseForm();
-      });
-    }
+    tabNotes.addEventListener("click", () => {
+      tabNotes.classList.add("active");
+      tabExpenses.classList.remove("active");
+      tabBalances.classList.remove("active");
+      tabActivity.classList.remove("active");
+      contentNotes.classList.add("active");
+      contentExpenses.classList.remove("active");
+      contentBalances.classList.remove("active");
+      contentActivity.classList.remove("active");
+      this.activeTab = "notes";
+      this.renderNotesWall();
+    });
 
     // 5. Search and Filters
     document.getElementById("expense-search").addEventListener("input", () => this.renderDashboard());
     document.getElementById("expense-filter-category").addEventListener("change", () => this.renderDashboard());
-
-    // Export Ledger CSV Action
-    const btnExport = document.getElementById("btn-export-ledger");
-    if (btnExport) {
-      btnExport.addEventListener("click", () => this.exportLedgerToCSV());
-    }
-
-    // Reset / Purge Records Modal & Actions
-    const btnOpenReset = document.getElementById("btn-open-reset-dialog");
-    if (btnOpenReset) {
-      btnOpenReset.addEventListener("click", () => {
-        this.vibrate(10);
-        const modal = document.getElementById("reset-records-dialog");
-        if (modal) modal.showModal();
-      });
-    }
-
-    const btnResetInGroupModal = document.getElementById("btn-reset-group-records");
-    if (btnResetInGroupModal) {
-      btnResetInGroupModal.addEventListener("click", () => {
-        this.vibrate(10);
-        const modal = document.getElementById("reset-records-dialog");
-        if (modal) modal.showModal();
-      });
-    }
-
-    const btnResetAll = document.getElementById("btn-action-reset-all");
-    if (btnResetAll) {
-      btnResetAll.addEventListener("click", () => this.resetAllGroupRecords());
-    }
-
-    const btnClearSettlements = document.getElementById("btn-action-clear-settlements");
-    if (btnClearSettlements) {
-      btnClearSettlements.addEventListener("click", () => this.clearSettlementsOnly());
-    }
-
-    const btnBatchSelect = document.getElementById("btn-action-batch-select");
-    if (btnBatchSelect) {
-      btnBatchSelect.addEventListener("click", () => this.toggleBatchSelectionMode(true));
-    }
-
-    const btnCancelBatch = document.getElementById("btn-cancel-batch");
-    if (btnCancelBatch) {
-      btnCancelBatch.addEventListener("click", () => this.exitBatchSelectionMode());
-    }
-
-    const btnDeleteBatch = document.getElementById("btn-delete-selected-batch");
-    if (btnDeleteBatch) {
-      btnDeleteBatch.addEventListener("click", () => this.deleteSelectedExpenses());
-    }
-
-    // Quick Filter Pills Event Listeners
-    const filterPills = document.querySelectorAll(".filter-pill");
-    filterPills.forEach(pill => {
-      pill.addEventListener("click", () => {
-        this.vibrate(10);
-        filterPills.forEach(p => p.classList.remove("active"));
-        pill.classList.add("active");
-        this.activeFilterPill = pill.getAttribute("data-filter");
-        this.renderDashboard();
-      });
-    });
-
-    // Currency Converter Interactive Elements
-    const converterToggle = document.getElementById("expense-convert-currency-toggle");
-    if (converterToggle) {
-      converterToggle.addEventListener("change", () => {
-        this.vibrate(10);
-        this.calculateForeignCurrency();
-      });
-    }
-
-    const foreignCurrencySelect = document.getElementById("expense-foreign-currency");
-    if (foreignCurrencySelect) {
-      foreignCurrencySelect.addEventListener("change", () => {
-        this.vibrate(10);
-        this.calculateForeignCurrency();
-      });
-    }
-
-    const foreignAmountInput = document.getElementById("expense-foreign-amount");
-    if (foreignAmountInput) {
-      foreignAmountInput.addEventListener("input", () => {
-        this.calculateForeignCurrency();
-      });
-    }
 
     // 6. Expense Modal triggers
     document.getElementById("btn-open-expense-dialog").addEventListener("click", () => this.openExpenseForm());
@@ -2558,18 +1662,12 @@ class SataSplitApp {
       e.preventDefault();
       
       const id = document.getElementById("expense-id-input").value;
-      const description = document.getElementById("expense-desc").value || "Expense";
-      const amount = parseFloat(document.getElementById("expense-amount").value) || 0;
-      const date = document.getElementById("expense-date").value || new Date().toISOString().substring(0, 10);
-      let paidBy = document.getElementById("expense-paid-by").value;
-      if (!paidBy && this.activeGroup && this.activeGroup.members && this.activeGroup.members.length > 0) {
-        paidBy = this.activeGroup.members[0];
-      }
-
-      const catEl = document.querySelector('input[name="expense-category"]:checked');
-      const splitEl = document.querySelector('input[name="split-type"]:checked');
-      const category = catEl ? catEl.value : "meals";
-      const splitType = splitEl ? splitEl.value : "equal";
+      const description = document.getElementById("expense-desc").value;
+      const amount = parseFloat(document.getElementById("expense-amount").value);
+      const date = document.getElementById("expense-date").value;
+      const paidBy = document.getElementById("expense-paid-by").value;
+      const category = document.querySelector('input[name="expense-category"]:checked').value;
+      const splitType = document.querySelector('input[name="split-type"]:checked').value;
 
       // Extract splits values
       const splits = {};
@@ -2707,17 +1805,7 @@ class SataSplitApp {
 
     // 11. Cloud sync tutorial badge trigger
     document.getElementById("sync-status-badge").addEventListener("click", () => {
-      if (isFirebaseEnabled && this.storage instanceof FirestoreAdapter) {
-        this.showToast("Cloud Database is connected & syncing in real time!", "success");
-      } else {
-        this.showToast("Connecting to Cloud Database...", "info");
-        const activeId = this.activeGroup ? this.activeGroup.id : "default-group";
-        this.initCloudConnection(activeId).then(() => {
-          if (!isFirebaseEnabled) {
-            document.getElementById("cloud-setup-dialog").showModal();
-          }
-        });
-      }
+      document.getElementById("cloud-setup-dialog").showModal();
     });
 
     // 12. Delete Active Group
@@ -2978,15 +2066,16 @@ class SataSplitApp {
 
     // 17. Lightbox triggers
     document.getElementById("btn-close-lightbox").addEventListener("click", () => {
-      this.vibrate(10);
-      document.getElementById("receipt-lightbox-dialog").close();
+      const lightbox = document.getElementById("receipt-lightbox-dialog");
+      lightbox.close();
+      lightbox.style.display = "none";
     });
 
     document.getElementById("receipt-lightbox-dialog").addEventListener("click", (e) => {
       const lightbox = document.getElementById("receipt-lightbox-dialog");
       if (e.target === lightbox) {
-        this.vibrate(10);
         lightbox.close();
+        lightbox.style.display = "none";
       }
     });
 
@@ -3111,28 +2200,18 @@ class SataSplitApp {
     });
 
     // 15. Open Changelog Dialog
-    const btnChangelog = document.getElementById("btn-open-changelog");
-    if (btnChangelog) {
-      btnChangelog.addEventListener("click", () => {
-        this.vibrate(10);
-        const dialog = document.getElementById("changelog-dialog");
-        if (dialog) dialog.showModal();
-      });
-    }
+    document.getElementById("btn-open-changelog").addEventListener("click", () => {
+      document.getElementById("changelog-dialog").showModal();
+    });
 
     // 21. Gemini API Key Settings Form & Triggers
     const apiKeyDialog = document.getElementById("api-key-dialog");
-    const btnApiSettings = document.getElementById("btn-open-api-settings");
-    if (btnApiSettings && apiKeyDialog) {
-      btnApiSettings.addEventListener("click", () => {
-        this.vibrate(10);
-        const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
-        const savedKey = cloudKey || localStorage.getItem("gemini_api_key") || "";
-        const inputKey = document.getElementById("input-gemini-key");
-        if (inputKey) inputKey.value = savedKey;
-        apiKeyDialog.showModal();
-      });
-    }
+    document.getElementById("btn-open-api-settings").addEventListener("click", () => {
+      const cloudKey = this.activeGroup ? this.activeGroup.geminiApiKey : "";
+      const savedKey = cloudKey || localStorage.getItem("gemini_api_key") || "";
+      document.getElementById("input-gemini-key").value = savedKey;
+      apiKeyDialog.showModal();
+    });
 
     document.getElementById("api-key-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -3284,24 +2363,6 @@ class SataSplitApp {
         this.showToast("All offline changes synced to Cloud successfully!", "success");
         this.switchGroup(this.activeGroup.id);
       }
-    });
-
-    // 26. Close dialog modals when clicking outside their card area (on the backdrop overlay)
-    const dialogElements = document.querySelectorAll("dialog");
-    dialogElements.forEach(dlg => {
-      if (dlg.id === "onboarding-dialog") return; // Onboarding dialog is mandatory, do not dismiss on click away
-      
-      dlg.addEventListener("click", (e) => {
-        const rect = dlg.getBoundingClientRect();
-        const isInDialog = (
-          rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-          rect.left <= e.clientX && e.clientX <= rect.left + rect.width
-        );
-        if (!isInDialog) {
-          this.vibrate(10);
-          dlg.close();
-        }
-      });
     });
   }
 
@@ -3577,11 +2638,6 @@ class SataSplitApp {
     const { type, data } = this.lastDeletedItem;
     if (type === "expense") {
       this.activeGroup.expenses.push(data);
-      if (data.hasReceipt && this.lastDeletedItem.receiptData) {
-        await this.saveReceiptImage(data.id, this.lastDeletedItem.receiptData);
-        this.activeGroup.receiptList = this.activeGroup.receiptList || [];
-        this.activeGroup.receiptList.push({ expenseId: data.id, timestamp: Date.now() });
-      }
       this.logActivity(`restored expense "${data.description}"`, false);
       await this.triggerStateSave();
       this.showToast(`Restored expense "${data.description}"`, "success");
@@ -3604,16 +2660,22 @@ class SataSplitApp {
     const isStandalone = window.navigator.standalone === true || 
       window.matchMedia('(display-mode: standalone)').matches;
 
+    // Check if user dismissed prompt previously
     const isDismissed = localStorage.getItem("ios_pwa_prompt_dismissed") === "true";
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    const dialog = document.getElementById("ios-install-dialog");
-    if (dialog && isMobile && !isStandalone && !isDismissed) {
-      setTimeout(() => {
-        try {
-          if (!dialog.open) dialog.showModal();
-        } catch (e) {}
-      }, 2000);
+    if (isIos && !isStandalone && !isDismissed) {
+      const promptEl = document.getElementById("ios-install-prompt");
+      if (promptEl) {
+        promptEl.style.display = "flex";
+        
+        const closeBtn = document.getElementById("btn-close-ios-prompt");
+        if (closeBtn) {
+          closeBtn.addEventListener("click", () => {
+            promptEl.style.display = "none";
+            localStorage.setItem("ios_pwa_prompt_dismissed", "true");
+          });
+        }
+      }
     }
   }
 
@@ -3720,14 +2782,6 @@ class SataSplitApp {
 
       const base64Data = await getBase64(file);
       
-      this.attachedReceiptBase64 = `data:${file.type};base64,${base64Data}`;
-      const indicator = document.getElementById("expense-receipt-indicator");
-      if (indicator) {
-        indicator.textContent = "📎 Image Attached";
-        indicator.style.color = "var(--success-color)";
-        indicator.style.display = "inline-block";
-      }
-      
       scannerStatus.textContent = "Analyzing with Gemini AI...";
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
@@ -3832,13 +2886,13 @@ class SataSplitApp {
   }
 
   checkOnboarding() {
-    if (!this.activeGroup || !Array.isArray(this.activeGroup.members)) return;
+    if (!this.activeGroup) return;
 
     const savedName = localStorage.getItem("fairshare_my_name");
-    const hasValidUser = savedName && this.activeGroup.members.includes(savedName);
+    const memberExists = savedName && this.activeGroup.members.includes(savedName);
 
     const dialog = document.getElementById("onboarding-dialog");
-    if (!hasValidUser && dialog) {
+    if (!memberExists && dialog && !dialog.open) {
       this.openOnboardingDialog();
     }
   }
@@ -3847,39 +2901,20 @@ class SataSplitApp {
     const dialog = document.getElementById("onboarding-dialog");
     if (!dialog) return;
 
-    if (dialog.open) {
-      try { dialog.close(); } catch(e){}
-    }
-
     dialog.addEventListener("cancel", (e) => e.preventDefault());
     
     const select = document.getElementById("onboarding-select-member");
-    if (select) {
-      select.innerHTML = '<option value="">-- Select Member Name --</option>';
-      
-      const members = (this.activeGroup && Array.isArray(this.activeGroup.members) && this.activeGroup.members.length > 0)
-        ? this.activeGroup.members
-        : ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
-        
-      members.forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        if (m === this.currentUser || m === localStorage.getItem("fairshare_my_name")) {
-          opt.selected = true;
-        }
-        select.appendChild(opt);
-      });
-    }
-
-    const inputName = document.getElementById("onboarding-input-name");
-    if (inputName) inputName.value = "";
+    select.innerHTML = '<option value="">-- Select Member Name --</option>';
     
-    try {
-      dialog.showModal();
-    } catch (err) {
-      console.warn("openOnboardingDialog showModal note:", err);
-    }
+    this.activeGroup.members.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+
+    document.getElementById("onboarding-input-name").value = "";
+    dialog.showModal();
   }
 
   compressImage(file) {
@@ -3927,16 +2962,7 @@ class SataSplitApp {
   }
 }
 
-// Instantiate the application safely regardless of document readyState
-function startApp() {
-  if (!window.app) {
-    window.app = new SataSplitApp();
-    console.log("SATA Split application instantiated successfully.");
-  }
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", startApp);
-} else {
-  startApp();
-}
+// Instantiate the application on page load
+window.addEventListener("DOMContentLoaded", () => {
+  window.app = new SataSplitApp();
+});
