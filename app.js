@@ -894,6 +894,9 @@ class SataSplitApp {
     } else if (tabName === "manage") {
       this.populatePageGroupSettings();
     }
+
+    // Always trigger dashboard re-render to populate active tab data
+    this.renderDashboard();
   }
 
   populatePageGroupSettings() {
@@ -1159,10 +1162,17 @@ class SataSplitApp {
     
     // Populate Paid By dropdown
     paidBySelect.innerHTML = "";
-    this.activeGroup.members.forEach(m => {
+    const members = (this.activeGroup && Array.isArray(this.activeGroup.members) && this.activeGroup.members.length > 0)
+      ? this.activeGroup.members
+      : ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
+
+    members.forEach(m => {
       const opt = document.createElement("option");
       opt.value = m;
       opt.textContent = m;
+      if (m === this.currentUser || m === localStorage.getItem("fairshare_my_name")) {
+        opt.selected = true;
+      }
       paidBySelect.appendChild(opt);
     });
 
