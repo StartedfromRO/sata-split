@@ -9,8 +9,29 @@ let firebaseApp = null;
 let firestoreDb = null;
 let isFirebaseEnabled = false;
 
-// Dynamic imports of Firebase libraries
+// Dynamic & Compat init of Firebase libraries
 async function initFirebase(config) {
+  // 1. Try Firebase Compat global (window.firebase) with retries for slow mobile loads
+  for (let i = 0; i < 10; i++) {
+    if (typeof firebase !== "undefined" && firebase.initializeApp && firebase.firestore) {
+      try {
+        if (!firebase.apps.length) {
+          firebaseApp = firebase.initializeApp(config);
+        } else {
+          firebaseApp = firebase.app();
+        }
+        firestoreDb = firebase.firestore();
+        isFirebaseEnabled = true;
+        console.log("Firebase initialized successfully via Compat SDK.");
+        return true;
+      } catch (err) {
+        console.error("Firebase compat init error:", err);
+      }
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  // 2. Fallback: Dynamic ES Module Imports
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
     const { getFirestore } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
@@ -18,7 +39,7 @@ async function initFirebase(config) {
     firebaseApp = initializeApp(config);
     firestoreDb = getFirestore(firebaseApp);
     isFirebaseEnabled = true;
-    console.log("Firebase initialized successfully.");
+    console.log("Firebase initialized successfully via dynamic import.");
     return true;
   } catch (error) {
     console.error("Failed to initialize Firebase:", error);
@@ -129,23 +150,32 @@ class FirestoreAdapter {
   constructor(db) {
     this.db = db;
     this.collectionName = "fairshare_groups";
+    this.isCompat = typeof db.collection === "function";
+  }
+
+  normalizeGroup(docId, rawData) {
+    if (!rawData || typeof rawData !== "object") return null;
+    const defaultMembers = ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"];
+    const members = Array.isArray(rawData.members) && rawData.members.length > 0 ? rawData.members : defaultMembers;
+    return {
+      id: rawData.id || docId,
+      name: rawData.name || "Apartment Share",
+      currency: rawData.currency || "$",
+      members: members,
+      expenses: Array.isArray(rawData.expenses) ? rawData.expenses : [],
+      settlements: Array.isArray(rawData.settlements) ? rawData.settlements : [],
+      bankDetails: rawData.bankDetails || {},
+      updatedAt: rawData.updatedAt || Date.now()
+    };
   }
 
   async getGroups() {
-    // Note: In Firestore mode, we don't list all public groups for privacy.
-    // Instead we just keep track of recently accessed group IDs in localStorage.
-    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
+    const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || '["default-group"]');
     const groups = {};
-    
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    
     for (const id of recentIds) {
       try {
-        const docRef = doc(this.db, this.collectionName, id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          groups[id] = docSnap.data();
-        }
+        const group = await this.getGroup(id);
+        if (group) groups[id] = group;
       } catch (err) {
         console.error(`Error loading group ${id} from Firestore:`, err);
       }
@@ -154,30 +184,48 @@ class FirestoreAdapter {
   }
 
   async getGroup(id) {
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const docRef = doc(this.db, this.collectionName, id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      this.trackRecentGroup(id);
-      return docSnap.data();
+    try {
+      if (this.isCompat) {
+        const docSnap = await this.db.collection(this.collectionName).doc(id).get();
+        if (docSnap && docSnap.exists) {
+          this.trackRecentGroup(id);
+          return this.normalizeGroup(id, docSnap.data());
+        }
+      } else {
+        const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const docRef = doc(this.db, this.collectionName, id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap && docSnap.exists()) {
+          this.trackRecentGroup(id);
+          return this.normalizeGroup(id, docSnap.data());
+        }
+      }
+    } catch (err) {
+      console.error(`Error fetching group ${id}:`, err);
     }
     return null;
   }
 
   async saveGroup(group) {
-    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
     group.updatedAt = Date.now();
-    const docRef = doc(this.db, this.collectionName, group.id);
-    await setDoc(docRef, group);
+    if (this.isCompat) {
+      await this.db.collection(this.collectionName).doc(group.id).set(group);
+    } else {
+      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const docRef = doc(this.db, this.collectionName, group.id);
+      await setDoc(docRef, group);
+    }
     this.trackRecentGroup(group.id);
   }
 
   async deleteGroup(id) {
-    const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const docRef = doc(this.db, this.collectionName, id);
-    await deleteDoc(docRef);
-    
-    // Also remove from recent groups list in localStorage
+    if (this.isCompat) {
+      await this.db.collection(this.collectionName).doc(id).delete();
+    } else {
+      const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const docRef = doc(this.db, this.collectionName, id);
+      await deleteDoc(docRef);
+    }
     const recentIds = JSON.parse(localStorage.getItem("fairshare_recent_groups") || "[]");
     const updatedIds = recentIds.filter(x => x !== id);
     localStorage.setItem("fairshare_recent_groups", JSON.stringify(updatedIds));
@@ -208,24 +256,39 @@ class FirestoreAdapter {
     return newGroup;
   }
 
-  listenToGroup(id, callback) {
-    let unsubscribe = () => {};
-    
-    // Set up real-time listener
-    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
-      const docRef = doc(this.db, this.collectionName, id);
-      unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          callback(docSnap.data());
+  listenToGroup(id, callback, onError) {
+    if (this.isCompat) {
+      const docRef = this.db.collection(this.collectionName).doc(id);
+      const unsubscribe = docRef.onSnapshot((docSnap) => {
+        if (docSnap && docSnap.exists) {
+          callback(this.normalizeGroup(id, docSnap.data()));
         } else {
           callback(null);
         }
       }, (error) => {
         console.error("Firestore listen error:", error);
+        if (onError) onError(error);
       });
-    });
-
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } else {
+      let unsubscribe = () => {};
+      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({ doc, onSnapshot }) => {
+        const docRef = doc(this.db, this.collectionName, id);
+        unsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap && docSnap.exists()) {
+            callback(this.normalizeGroup(id, docSnap.data()));
+          } else {
+            callback(null);
+          }
+        }, (error) => {
+          console.error("Firestore listen error:", error);
+          if (onError) onError(error);
+        });
+      }).catch((err) => {
+        if (onError) onError(err);
+      });
+      return () => unsubscribe();
+    }
   }
 
   trackRecentGroup(id) {
@@ -1662,12 +1725,18 @@ class SataSplitApp {
       e.preventDefault();
       
       const id = document.getElementById("expense-id-input").value;
-      const description = document.getElementById("expense-desc").value;
-      const amount = parseFloat(document.getElementById("expense-amount").value);
-      const date = document.getElementById("expense-date").value;
-      const paidBy = document.getElementById("expense-paid-by").value;
-      const category = document.querySelector('input[name="expense-category"]:checked').value;
-      const splitType = document.querySelector('input[name="split-type"]:checked').value;
+      const description = document.getElementById("expense-desc").value || "Expense";
+      const amount = parseFloat(document.getElementById("expense-amount").value) || 0;
+      const date = document.getElementById("expense-date").value || new Date().toISOString().substring(0, 10);
+      let paidBy = document.getElementById("expense-paid-by").value;
+      if (!paidBy && this.activeGroup && Array.isArray(this.activeGroup.members) && this.activeGroup.members.length > 0) {
+        paidBy = this.activeGroup.members[0];
+      }
+      
+      const catEl = document.querySelector('input[name="expense-category"]:checked');
+      const splitEl = document.querySelector('input[name="split-type"]:checked');
+      const category = catEl ? catEl.value : "meals";
+      const splitType = splitEl ? splitEl.value : "equal";
 
       // Extract splits values
       const splits = {};
