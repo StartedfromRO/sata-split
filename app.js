@@ -681,14 +681,21 @@ class SataSplitApp {
 
     // Populate Active User dropdown
     if (this.activeGroup && Array.isArray(this.activeGroup.members)) {
-      if (!this.currentUser || !this.activeGroup.members.includes(this.currentUser)) {
-        const savedName = localStorage.getItem("fairshare_my_name");
-        if (savedName && this.activeGroup.members.includes(savedName)) {
-          this.currentUser = savedName;
-        } else if (this.activeGroup.members.length > 0) {
-          this.currentUser = this.activeGroup.members[0];
-          localStorage.setItem("fairshare_my_name", this.currentUser);
-        }
+      const savedName = localStorage.getItem("fairshare_my_name");
+      if (savedName && this.activeGroup.members.includes(savedName)) {
+        this.currentUser = savedName;
+      } else {
+        this.currentUser = "";
+      }
+
+      userSelect.innerHTML = "";
+
+      if (!this.currentUser) {
+        const placeholderOpt = document.createElement("option");
+        placeholderOpt.value = "";
+        placeholderOpt.textContent = "▼ Select User";
+        placeholderOpt.selected = true;
+        userSelect.appendChild(placeholderOpt);
       }
 
       this.activeGroup.members.forEach(member => {
