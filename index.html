@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SATA Split - Smart Expense Splitter</title>
   <meta name="description" content="A beautiful, interactive expense splitter with real-time database sync and smart debt simplification. Split equally, unequally, by shares or percentages.">
-  <link rel="stylesheet" href="styles.css?v=1.8.0">
+  <link rel="stylesheet" href="styles.css?v=1.8.1">
   <link rel="icon" type="image/jpeg" href="logo.jpg">
   
   <!-- iOS Web App Specific Metadata -->
@@ -14,12 +14,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SATA Split">
   
-  <!-- Firebase SDKs (Mobile Browser Compatible) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  
   <!-- Load Configuration First -->
-  <script src="config.js?v=1.8.1"></script>
+  <script src="config.js"></script>
 </head>
 <body>
   
@@ -28,100 +24,101 @@
   <div class="liquid-blob blob-2"></div>
   <div class="liquid-blob blob-3"></div>
   
-  <div class="app-container">
-    
-    <!-- Top Header -->
-    <header class="glass-panel animate-fade-in">
-      <div class="logo-section">
-        <img class="logo-img" src="logo.jpg" alt="SATA Logo">
-        <div>
-          <h1 class="logo-text">SATA Split</h1>
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Pay what you owe fool!</span>
-        </div>
-      </div>
+  <!-- Smartphone Centered Wrapper -->
+  <div class="app-phone-wrapper">
+    <div class="app-container">
       
-      <div class="controls-section">
-        <!-- Group Selector -->
-        <div class="select-wrapper">
-          <select id="group-select" class="select-input" aria-label="Select Group">
-            <!-- Dynamically populated -->
-          </select>
+      <!-- Top Header -->
+      <header class="glass-panel animate-fade-in">
+        <div class="logo-section">
+          <img class="logo-img" src="logo.jpg" alt="SATA Logo">
+          <div>
+            <h1 class="logo-text">SATA Split</h1>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;">Pay what you owe fool!</span>
+          </div>
         </div>
         
-        <!-- Current User Selector -->
-        <div class="select-wrapper">
-          <select id="user-select" class="select-input" aria-label="Select Active User (You)">
-            <!-- Dynamically populated -->
-          </select>
+        <div class="controls-section">
+          <!-- Group Selector -->
+          <div class="select-wrapper">
+            <select id="group-select" class="select-input" aria-label="Select Group">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          
+          <!-- Current User Selector -->
+          <div class="select-wrapper">
+            <select id="user-select" class="select-input" aria-label="Select Active User (You)">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          
+          <!-- Cloud Sync Badge -->
+          <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
+            <span class="dot"></span>
+            <span class="label">Local Mode</span>
+          </button>
+          
+          <!-- Theme Toggle -->
+          <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
+            <svg class="sun-icon" style="display: none;" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5"></circle>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+            </svg>
+            <svg class="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          
+          <!-- Changelog Button -->
+          <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
+            📜
+          </button>
+          
+          <!-- API Settings Button -->
+          <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
+            ⚙️
+          </button>
         </div>
-        
-        <!-- Cloud Sync Badge -->
-        <button id="sync-status-badge" class="sync-badge local" title="Click to view database setup instructions">
-          <span class="dot"></span>
-          <span class="label">Local Mode</span>
-        </button>
-        
-        <!-- Theme Toggle -->
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light/dark theme">
-          <svg class="sun-icon" style="display: none;" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="5"></circle>
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
-          </svg>
-          <svg class="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
-        
-        <!-- Changelog Button -->
-        <button id="btn-open-changelog" class="theme-toggle-btn" aria-label="Open Changelog" title="Changelog / Release Notes" style="font-size: 1.15rem;">
-          📜
-        </button>
-        
-        <!-- API Settings Button -->
-        <button id="btn-open-api-settings" class="theme-toggle-btn" aria-label="Gemini AI Settings" title="Gemini AI Setup" style="font-size: 1.15rem;">
-          ⚙️
-        </button>
-      </div>
-    </header>
+      </header>
 
-    <!-- Stats Banner -->
-    <section class="stats-grid animate-fade-in" style="animation-delay: 0.1s;">
-      <div class="glass-panel stat-card total">
-        <div class="stat-label">Total Group Spend</div>
-        <div id="stat-total-spend" class="stat-value">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card owed">
-        <div class="stat-label">You Are Owed</div>
-        <div id="stat-you-are-owed" class="stat-value success">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card owe">
-        <div class="stat-label">You Owe</div>
-        <div id="stat-you-owe" class="stat-value danger">$0.00</div>
-      </div>
-      
-      <div class="glass-panel stat-card net">
-        <div class="stat-label">Your Net Balance</div>
-        <div id="stat-net-balance" class="stat-value">$0.00</div>
-      </div>
-    </section>
+      <!-- Desktop Nav Tab Bar (for wide screens) -->
+      <nav class="tabs-header">
+        <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
+        <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
+        <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
+        <button id="tab-btn-notes" class="tab-btn">Notes Wall</button>
+        <button id="tab-btn-manage" class="tab-btn">Manage Group</button>
+      </nav>
 
-    <!-- Dashboard Body -->
-    <main class="dashboard-grid">
-      
-      <!-- Main Content Column -->
-      <section class="glass-panel animate-fade-in" style="animation-delay: 0.2s;">
-        <!-- Tabs Header -->
-        <nav class="tabs-header">
-          <button id="tab-btn-expenses" class="tab-btn active">Expenses Ledger</button>
-          <button id="tab-btn-balances" class="tab-btn">Balances & Settlements</button>
-          <button id="tab-btn-activity" class="tab-btn">Activity Feed</button>
-          <button id="tab-btn-notes" class="tab-btn">Notes Wall</button>
-        </nav>
+      <!-- Screen Router Area -->
+      <main class="app-screen-body">
         
         <!-- Tab Content: Expenses -->
         <div id="tab-content-expenses" class="tab-content active">
+          <!-- Stats Banner -->
+          <section class="stats-grid animate-fade-in" style="margin-bottom: 1.25rem;">
+            <div class="glass-panel stat-card total">
+              <div class="stat-label">Total Group Spend</div>
+              <div id="stat-total-spend" class="stat-value">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card owed">
+              <div class="stat-label">You Are Owed</div>
+              <div id="stat-you-are-owed" class="stat-value success">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card owe">
+              <div class="stat-label">You Owe</div>
+              <div id="stat-you-owe" class="stat-value danger">$0.00</div>
+            </div>
+            
+            <div class="glass-panel stat-card net">
+              <div class="stat-label">Your Net Balance</div>
+              <div id="stat-net-balance" class="stat-value">$0.00</div>
+            </div>
+          </section>
+
           <div class="filters-bar">
             <!-- Search -->
             <div class="search-input-wrapper">
@@ -152,6 +149,18 @@
               <span>Charts</span>
             </button>
             
+            <!-- Export Ledger Button -->
+            <button id="btn-export-ledger" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; padding: 0.65rem 0.85rem;" type="button">
+              <span>📥</span>
+              <span>Export</span>
+            </button>
+            
+            <!-- Reset Records Button -->
+            <button id="btn-open-reset-dialog" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; padding: 0.65rem 0.85rem;" type="button" title="Reset or Clear Group Records">
+              <span>🧹</span>
+              <span>Reset</span>
+            </button>
+            
             <!-- Add Expense Button -->
             <button id="btn-open-expense-dialog" class="btn btn-primary">
               <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 0.25rem;">
@@ -159,6 +168,15 @@
               </svg>
               Add Expense
             </button>
+          </div>
+          
+          <!-- Quick Filters Pills -->
+          <div id="quick-filters-bar" class="quick-filters-bar" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; -webkit-overflow-scrolling: touch;">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="paid-by-me">Paid by Me</button>
+            <button class="filter-pill" data-filter="unequal">Split Unequally</button>
+            <button class="filter-pill" data-filter="high-value">High Value</button>
+            <button class="filter-pill" data-filter="this-month">This Month</button>
           </div>
           
           <!-- Analytics Collapsible Panel -->
@@ -228,6 +246,7 @@
             <div id="settlements-history-list" class="expenses-list">
               <!-- Dynamically populated -->
             </div>
+          </div>
         </div>
 
         <!-- Tab Content: Activity Feed -->
@@ -256,44 +275,99 @@
             </div>
           </div>
         </div>
-      </section>
-      
-      <!-- Sidebar Column -->
-      <aside class="sidebar-panel">
-        
-        <!-- Members List Panel -->
-        <div class="glass-panel animate-fade-in" style="animation-delay: 0.3s;">
-          <div class="sidebar-title-row">
-            <h3>Group Members</h3>
-            <button id="btn-open-group-dialog" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
-              Manage Group
-            </button>
-          </div>
-          <div id="sidebar-members-list" class="members-list">
-            <!-- Dynamically populated -->
+
+        <!-- Tab Content: Manage Group -->
+        <div id="tab-content-manage" class="tab-content">
+          <div class="activity-section">
+            <h3 style="margin-bottom: 0.5rem; color: var(--primary-color); margin-top: 0;">⚙️ Manage Group Settings</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+              Update group details, manage member list, view share link, or purge group records.
+            </p>
+            
+            <!-- Group Members Display Panel -->
+            <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1.25rem; border-color: rgba(99, 102, 241, 0.2);">
+              <div class="sidebar-title-row" style="margin-bottom: 0.75rem;">
+                <h4 style="margin: 0; color: var(--text-primary); font-size: 1rem;">👥 Group Members List</h4>
+              </div>
+              <div id="sidebar-members-list" class="members-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Share Link Panel -->
+            <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1.25rem; border-color: rgba(99, 102, 241, 0.2);">
+              <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 1rem;">🔗 Share Group with Friends</h4>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                Send this link to group members so they can view, add, and sync expenses with you!
+              </p>
+              <div class="share-card-input-group">
+                <span id="share-url-text" class="share-url-input">Loading link...</span>
+                <button id="btn-copy-share-url" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" title="Copy to Clipboard">
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <!-- Group Form -->
+            <form id="page-group-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <!-- Group Name -->
+              <div class="form-group">
+                <label for="page-group-name-input" style="font-weight: 600;">Group Name</label>
+                <input type="text" id="page-group-name-input" class="form-input" placeholder="e.g. Road Trip, Housemates" required>
+              </div>
+              
+              <!-- Currency Symbol -->
+              <div class="form-group">
+                <label for="page-group-currency-input" style="font-weight: 600;">Currency Symbol</label>
+                <div class="select-wrapper">
+                  <select id="page-group-currency-input" class="select-input" style="width: 100%;">
+                    <option value="$">$ (USD)</option>
+                    <option value="RM">RM (MYR)</option>
+                    <option value="€">€ (EUR)</option>
+                    <option value="£">£ (GBP)</option>
+                    <option value="S$">S$ (SGD)</option>
+                    <option value="¥">¥ (JPY)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- Manage Members -->
+              <div class="form-group">
+                <label style="font-weight: 600;">Edit Group Members</label>
+                <div id="page-group-members-list" class="split-members-container" style="max-height: 200px; margin-top: 0.5rem;">
+                  <!-- Dynamically populated member names with remove buttons -->
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                  <input type="text" id="page-new-member-name" class="form-input" placeholder="Add member name..." style="padding: 0.5rem;">
+                  <button type="button" id="page-btn-add-member-item" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Add Member</button>
+                </div>
+              </div>
+              
+              <div style="display: flex; justify-content: flex-start; gap: 0.75rem; margin-top: 0.5rem;">
+                <button type="submit" class="btn btn-primary">Save Group Changes</button>
+              </div>
+
+              <div style="margin-top: 1.5rem; border-top: 1px solid var(--surface-border); padding-top: 1.5rem;">
+                <h4 style="margin-bottom: 0.75rem; color: var(--danger-color);">Group Administration</h4>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                  <button type="button" id="page-btn-create-new-group" class="btn btn-secondary" style="font-size: 0.85rem; border-color: var(--primary-color); color: var(--primary-color);">
+                    ＋ Create New Group
+                  </button>
+                  <button type="button" id="page-btn-reset-group-records" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
+                    🧹 Reset Group Records
+                  </button>
+                  <button type="button" id="page-btn-delete-active-group" class="btn btn-danger" style="font-size: 0.85rem;">
+                    🗑️ Delete Group
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
-        
-        <!-- Share Link Panel -->
-        <div class="glass-panel animate-fade-in" style="animation-delay: 0.4s;">
-          <h3>Share with Friends</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;">
-            Send this link to group members so they can view, add, and sync expenses with you!
-          </p>
-          <div class="share-card-input-group">
-            <span id="share-url-text" class="share-url-input">Loading link...</span>
-            <button id="btn-copy-share-url" class="btn btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.85rem;" title="Copy to Clipboard">
-              Copy
-            </button>
-          </div>
-        </div>
-        
-        <!-- Info Helper Panel removed (Quick Actions) -->
-        
-      </aside>
+      </main>
       
-    </main>
-    
+    </div>
   </div>
 
   <!-- Toast Container -->
@@ -313,11 +387,15 @@
         
         <!-- Description -->
         <div class="form-group" style="position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-            <label for="expense-desc" style="margin-bottom: 0;">Description</label>
-            <button type="button" id="btn-scan-receipt-ai" style="background: var(--primary-light); border: 1px solid rgba(0, 229, 255, 0.25); color: var(--primary-color); cursor: pointer; border-radius: 20px; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; display: flex; align-items: center; gap: 0.25rem; transition: all 0.2s;" title="Scan receipt with real Gemini AI">
-              <span>📷</span> <span>Scan Receipt (AI)</span>
-            </button>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; margin-top: 0;">
+            <label for="expense-desc" style="margin: 0;">Description</label>
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+              <button type="button" id="btn-scan-receipt-ai" style="background: var(--primary-light); border: 1px solid rgba(0, 229, 255, 0.25); color: var(--primary-color); cursor: pointer; border-radius: 20px; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; display: flex; align-items: center; gap: 0.25rem; transition: all 0.2s;" title="Scan receipt with real Gemini AI">
+                <span>📷</span>
+                <span>Scan Receipt (AI)</span>
+              </button>
+              <span id="expense-receipt-indicator" style="font-size: 0.7rem; color: var(--success-color); font-weight: 700; display: none; margin-top: 0.25rem; letter-spacing: 0.02em;">📎 Image Attached</span>
+            </div>
             <!-- Invisible input for file choosing -->
             <input type="file" id="scan-receipt-file-input" accept="image/*" style="display: none;">
           </div>
@@ -337,6 +415,43 @@
           <div class="form-group">
             <label for="expense-date">Date</label>
             <input type="date" id="expense-date" class="form-input" required>
+          </div>
+        </div>
+        
+        <!-- Currency Converter Toggle -->
+        <div style="margin-bottom: 0.75rem;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--primary-color);">
+            <input type="checkbox" id="expense-convert-currency-toggle" style="width: 1rem; height: 1rem; cursor: pointer;">
+            Convert Foreign Currency? 💱
+          </label>
+        </div>
+
+        <!-- Hidden Currency Converter Section -->
+        <div id="currency-converter-section" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.75rem 1rem; margin-bottom: 1rem; gap: 0.75rem; flex-direction: column;">
+          <div style="display: flex; gap: 0.75rem;">
+            <div style="flex: 1;">
+              <label for="expense-foreign-currency" style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">Foreign Currency</label>
+              <select id="expense-foreign-currency" class="select-input" style="width: 100%; border-radius: var(--radius-sm); padding: 0.4rem 0.5rem; background: var(--bg-color); border: 1px solid var(--surface-border); color: var(--text-primary);">
+                <option value="SGD">🇸🇬 SGD (Singapore Dollar)</option>
+                <option value="USD">🇺🇸 USD (US Dollar)</option>
+                <option value="THB">🇹🇭 THB (Thai Baht)</option>
+                <option value="EUR">🇪🇺 EUR (Euro)</option>
+                <option value="GBP">🇬🇧 GBP (British Pound)</option>
+                <option value="IDR">🇮🇩 IDR (Indonesian Rupiah)</option>
+                <option value="VND">🇻🇳 VND (Vietnamese Dong)</option>
+                <option value="PHP">🇵🇭 PHP (Philippine Peso)</option>
+                <option value="JPY">🇯🇵 JPY (Japanese Yen)</option>
+                <option value="AUD">🇦🇺 AUD (Australian Dollar)</option>
+              </select>
+            </div>
+            <div style="flex: 1.2;">
+              <label for="expense-foreign-amount" style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">Foreign Amount</label>
+              <input type="number" id="expense-foreign-amount" class="form-input" placeholder="0.00" step="0.01" min="0.01" style="width: 100%; box-sizing: border-box; border-radius: var(--radius-sm); padding: 0.4rem 0.5rem;">
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); border-top: 1px dotted var(--surface-border); padding-top: 0.5rem; margin-top: 0.25rem;">
+            <div>Exchange Rate: <span id="exchange-rate-value" style="font-weight: 700; color: var(--primary-color);">-</span></div>
+            <div>Converted: <span id="converted-amount-preview" style="font-weight: 700; color: var(--success-color);">-</span></div>
           </div>
         </div>
         
@@ -549,6 +664,7 @@
           <div style="margin-top: 0.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem;">
             <div><strong>Account Holder (Full Name):</strong> <span id="bank-view-holder" style="font-weight:600;">-</span></div>
             <button type="button" id="btn-copy-bank-holder" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem;">📋 Copy Name</button>
+          </div>
           <div style="margin-top: 0.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top: 1px dotted var(--surface-border); padding-top: 0.5rem;">
             <div><strong>DuitNow ID:</strong> <span id="bank-view-duitnow" style="font-weight:600; color: var(--success-color);">-</span> <span id="bank-view-duitnow-type" style="font-size:0.75rem; color:var(--text-muted); text-transform: capitalize;"></span></div>
             <button type="button" id="btn-copy-bank-duitnow" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; display: none;">📋 Copy ID</button>
@@ -672,11 +788,14 @@
           </div>
         </div>
         
-        <!-- Create new group button toggle & Delete Group -->
+        <!-- Create new group button toggle, Reset & Delete Group -->
         <div style="margin-top: 1rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="display: flex; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="button" id="btn-create-new-group" class="btn btn-secondary" style="font-size: 0.85rem; border-color: var(--primary-color); color: var(--primary-color);">
               ＋ Create Group
+            </button>
+            <button type="button" id="btn-reset-group-records" class="btn btn-secondary" style="font-size: 0.85rem; border-color: #f59e0b; color: #f59e0b;">
+              🧹 Reset Records
             </button>
             <button type="button" id="btn-delete-active-group" class="btn btn-danger" style="font-size: 0.85rem;">
               🗑️ Delete Group
@@ -774,17 +893,17 @@
       
       <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
         
-        <!-- v1.8.1 -->
+        <!-- v1.9.0 -->
         <div class="changelog-version">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.8.1</span>
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.9.0</span>
             <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-30</span>
           </div>
-          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Form Crash Prevention & Dual-Mode Mobile Cloud Sync</h4>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Native Mobile Smartphone App UI/UX Transformation</h4>
           <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-            <li><strong>Form Crash Fix</strong>: Added null-safety guards for category, split type, and paidBy inputs when adding/editing expenses to prevent silent form submit failures.</li>
-            <li><strong>Mobile Compat SDK</strong>: Pre-loaded Firebase Compat SDKs in document head so Cloud Firestore connects 100% reliably across all mobile browsers.</li>
-            <li><strong>Firestore Document Normalization</strong>: Injected schema defaults for Firestore snapshots so missing raw fields never result in empty member lists or blank dropdowns.</li>
+            <li><strong>Smartphone Container Layout</strong>: Centered smartphone app container on desktop, and 100% full-screen native mobile viewport layout on phone screens.</li>
+            <li><strong>Isolated Single-Page Screen Views</strong>: 5 dedicated view tabs (💳 Expenses, ⚖️ Balances, 📜 Activity, 📌 Notes, ⚙️ Manage) for crisp navigation.</li>
+            <li><strong>Mobile Bottom Navigation Bar</strong>: Fixed bottom navigation bar with haptic feedback and active tab indicator for 100% native mobile app feel.</li>
           </ul>
         </div>
 
@@ -981,7 +1100,7 @@
   </dialog>
 
   <!-- DIALOG: Receipt Lightbox Dialog -->
-  <dialog id="receipt-lightbox-dialog" style="border: none; background: rgba(0,0,0,0.85); width: 100vw; height: 100vh; max-width: 100%; max-height: 100%; display: none; align-items: center; justify-content: center; z-index: 10000; padding: 0;">
+  <dialog id="receipt-lightbox-dialog" style="border: none; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; padding: 0; margin: 0; outline: none;">
     <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
       <button type="button" id="btn-close-lightbox" style="position: absolute; top: 1.5rem; right: 1.5rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 44px; height: 44px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
       <img id="receipt-lightbox-img" src="" alt="Full Receipt" style="max-width: 90%; max-height: 80%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); object-fit: contain;">
@@ -989,8 +1108,71 @@
     </div>
   </dialog>
 
+  <!-- DIALOG: Reset / Clear Records Modal -->
+  <dialog id="reset-records-dialog">
+    <div class="dialog-card" style="max-width: 440px;">
+      <div class="dialog-header">
+        <h2 style="display: flex; align-items: center; gap: 0.5rem;">
+          <span>🧹</span>
+          <span>Reset & Purge Records</span>
+        </h2>
+        <button type="button" class="dialog-close-btn" onclick="document.getElementById('reset-records-dialog').close()">&times;</button>
+      </div>
+      
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.4;">
+        Select an action to clean up transactions for this group. Group members, bank details, and settings will not be deleted.
+      </p>
+      
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Option 1: Full Reset -->
+        <button type="button" id="btn-action-reset-all" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">💥</div>
+          <div>
+            <div style="font-weight: 700; color: var(--danger-color); font-size: 0.95rem;">Reset All Group Records</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Wipe all expenses, settlements, receipt photos, and activity history for this group.</div>
+          </div>
+        </button>
+
+        <!-- Option 2: Clear Settlements Only -->
+        <button type="button" id="btn-action-clear-settlements" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">💳</div>
+          <div>
+            <div style="font-weight: 700; color: #f59e0b; font-size: 0.95rem;">Clear Settlements Only</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Wipe payment settlement history while keeping all bill expenses intact.</div>
+          </div>
+        </button>
+
+        <!-- Option 3: Batch Select Specific Records -->
+        <button type="button" id="btn-action-batch-select" class="glass-panel" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; text-align: left; background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.3); cursor: pointer; transition: all 0.2s ease; border-radius: var(--radius-md);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">☑️</div>
+          <div>
+            <div style="font-weight: 700; color: var(--primary-color); font-size: 0.95rem;">Select & Clear Specific Records</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Turn on selection checkboxes on the expenses list to pick specific items and delete them in bulk.</div>
+          </div>
+        </button>
+      </div>
+
+      <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('reset-records-dialog').close()">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Floating Batch Selection Action Bar -->
+  <div id="batch-action-bar" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 440px; z-index: 9999; padding: 0.85rem 1.25rem; border-color: var(--primary-color); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); align-items: center; justify-content: space-between; border-radius: 30px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(20px);">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.1rem;">☑️</span>
+      <span id="batch-selected-count" style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">0 Selected</span>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <button type="button" id="btn-cancel-batch" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-radius: 20px;">Cancel</button>
+      <button type="button" id="btn-delete-selected-batch" class="btn btn-danger" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-radius: 20px; font-weight: 700;">Delete Selected</button>
+    </div>
+  </div>
+
   <!-- iOS PWA Install Prompt -->
-  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
+  <div id="ios-install-prompt" class="glass-panel" style="display: none; position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%); width: calc(100% - 2rem); max-width: 420px; z-index: 9999; padding: 1rem; border-color: var(--primary-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); align-items: center; gap: 1rem; animation: slide-up 0.5s ease;">
     <div style="font-size: 1.5rem; flex-shrink: 0;">📱</div>
     <div style="flex: 1; font-size: 0.9rem; line-height: 1.4; color: var(--text-primary);">
       <div style="font-size: 1.15rem; font-weight: bold; margin-bottom: 0.25rem; color: var(--primary-color);">Install SATA APP!</div>
@@ -999,7 +1181,38 @@
     <button type="button" id="btn-close-ios-prompt" class="dialog-close-btn" style="position: static; font-size: 1.25rem; background: none; border: none; color: var(--text-secondary); cursor: pointer;">&times;</button>
   </div>
 
+  <!-- Mobile Floating Action Button (FAB) -->
+  <button type="button" id="fab-add-expense" class="mobile-fab" title="Add New Expense">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"></path>
+    </svg>
+  </button>
+
+  <!-- Mobile Native Bottom Navigation Bar -->
+  <nav id="mobile-bottom-nav" class="mobile-bottom-nav">
+    <button type="button" class="mobile-nav-item active" data-tab="expenses" id="bnav-expenses">
+      <span class="mobile-nav-icon">🧾</span>
+      <span class="mobile-nav-label">Expenses</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="balances" id="bnav-balances">
+      <span class="mobile-nav-icon">⚖️</span>
+      <span class="mobile-nav-label">Balances</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="activity" id="bnav-activity">
+      <span class="mobile-nav-icon">📜</span>
+      <span class="mobile-nav-label">Activity</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-tab="notes" id="bnav-notes">
+      <span class="mobile-nav-icon">📌</span>
+      <span class="mobile-nav-label">Notes</span>
+    </button>
+    <button type="button" class="mobile-nav-item" id="bnav-manage">
+      <span class="mobile-nav-icon">⚙️</span>
+      <span class="mobile-nav-label">Manage</span>
+    </button>
+  </nav>
+
   <!-- Load main app logic -->
-  <script type="module" src="app.js?v=1.8.0"></script>
+  <script type="module" src="app.js?v=1.8.1"></script>
 </body>
 </html>

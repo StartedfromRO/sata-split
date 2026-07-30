@@ -674,7 +674,7 @@ class SataSplitApp {
 
     // 3. Shareable Link
     document.getElementById("share-url-text").textContent = window.location.href;
-
+    
     // 4. Active Tab Render
     if (this.activeTab === "expenses") {
       this.renderExpensesList(balances);
@@ -682,6 +682,8 @@ class SataSplitApp {
       this.renderActivityFeed();
     } else if (this.activeTab === "notes") {
       this.renderNotesWall();
+    } else if (this.activeTab === "manage") {
+      this.populatePageGroupSettings();
     }
 
     // 5. Balances List Tab
@@ -836,6 +838,97 @@ class SataSplitApp {
       this.renderNotesWall();
     }
     this.renderActivityFeed();
+  }
+
+  switchTab(tabName) {
+    this.vibrate(10);
+    this.activeTab = tabName;
+
+    // Desktop Tab Buttons
+    const tabExpenses = document.getElementById("tab-btn-expenses");
+    const tabBalances = document.getElementById("tab-btn-balances");
+    const tabActivity = document.getElementById("tab-btn-activity");
+    const tabNotes = document.getElementById("tab-btn-notes");
+    const tabManage = document.getElementById("tab-btn-manage");
+    
+    // Tab Contents
+    const contentExpenses = document.getElementById("tab-content-expenses");
+    const contentBalances = document.getElementById("tab-content-balances");
+    const contentActivity = document.getElementById("tab-content-activity");
+    const contentNotes = document.getElementById("tab-content-notes");
+    const contentManage = document.getElementById("tab-content-manage");
+
+    const tabsMap = {
+      expenses: { btn: tabExpenses, content: contentExpenses },
+      balances: { btn: tabBalances, content: contentBalances },
+      activity: { btn: tabActivity, content: contentActivity },
+      notes: { btn: tabNotes, content: contentNotes },
+      manage: { btn: tabManage, content: contentManage }
+    };
+
+    Object.keys(tabsMap).forEach(key => {
+      const item = tabsMap[key];
+      if (item.btn) {
+        if (key === tabName) item.btn.classList.add("active");
+        else item.btn.classList.remove("active");
+      }
+      if (item.content) {
+        if (key === tabName) item.content.classList.add("active");
+        else item.content.classList.remove("active");
+      }
+    });
+
+    // Mobile Bottom Nav Items Sync
+    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navItem => {
+      if (navItem.getAttribute("data-tab") === tabName) {
+        navItem.classList.add("active");
+      } else {
+        navItem.classList.remove("active");
+      }
+    });
+
+    if (tabName === "activity") {
+      this.renderActivityFeed();
+    } else if (tabName === "notes") {
+      this.renderNotesWall();
+    } else if (tabName === "manage") {
+      this.populatePageGroupSettings();
+    }
+  }
+
+  populatePageGroupSettings() {
+    const nameInput = document.getElementById("page-group-name-input");
+    const currencySelect = document.getElementById("page-group-currency-input");
+    const list = document.getElementById("page-group-members-list");
+
+    if (!nameInput || !currencySelect || !list || !this.activeGroup) return;
+
+    nameInput.value = this.activeGroup.name || "";
+    currencySelect.value = this.activeGroup.currency || "$";
+
+    list.innerHTML = "";
+    this.activeGroup.members.forEach(member => {
+      const card = document.createElement("div");
+      card.className = "member-item glass-panel";
+      card.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: var(--radius-md);";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.style.cssText = "font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;";
+      nameSpan.innerHTML = `👤 ${member}`;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-outline";
+      removeBtn.style.cssText = "padding: 0.25rem 0.6rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #ef4444;";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", () => this.removeMemberFromGroup(member));
+
+      card.appendChild(nameSpan);
+      if (this.activeGroup.members.length > 2) {
+        card.appendChild(removeBtn);
+      }
+      list.appendChild(card);
+    });
   }
 
   renderExpensesList(balances) {
@@ -1646,65 +1739,33 @@ class SataSplitApp {
       this.updateThemeIcons(isLight);
     });
 
-    // 4. Tab Navigation
+    // 4. Tab Navigation (Desktop & Mobile Nav)
     const tabExpenses = document.getElementById("tab-btn-expenses");
     const tabBalances = document.getElementById("tab-btn-balances");
     const tabActivity = document.getElementById("tab-btn-activity");
     const tabNotes = document.getElementById("tab-btn-notes");
-    const contentExpenses = document.getElementById("tab-content-expenses");
-    const contentBalances = document.getElementById("tab-content-balances");
-    const contentActivity = document.getElementById("tab-content-activity");
-    const contentNotes = document.getElementById("tab-content-notes");
+    const tabManage = document.getElementById("tab-btn-manage");
 
-    tabExpenses.addEventListener("click", () => {
-      tabExpenses.classList.add("active");
-      tabBalances.classList.remove("active");
-      tabActivity.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentExpenses.classList.add("active");
-      contentBalances.classList.remove("active");
-      contentActivity.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "expenses";
+    if (tabExpenses) tabExpenses.addEventListener("click", () => this.switchTab("expenses"));
+    if (tabBalances) tabBalances.addEventListener("click", () => this.switchTab("balances"));
+    if (tabActivity) tabActivity.addEventListener("click", () => this.switchTab("activity"));
+    if (tabNotes) tabNotes.addEventListener("click", () => this.switchTab("notes"));
+    if (tabManage) tabManage.addEventListener("click", () => this.switchTab("manage"));
+
+    // Mobile Bottom Navigation items
+    document.querySelectorAll(".mobile-nav-item[data-tab]").forEach(navBtn => {
+      navBtn.addEventListener("click", () => {
+        const tab = navBtn.getAttribute("data-tab");
+        this.switchTab(tab);
+      });
     });
 
-    tabBalances.addEventListener("click", () => {
-      tabBalances.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabActivity.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentBalances.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentActivity.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "balances";
-    });
-
-    tabActivity.addEventListener("click", () => {
-      tabActivity.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabBalances.classList.remove("active");
-      tabNotes.classList.remove("active");
-      contentActivity.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentBalances.classList.remove("active");
-      contentNotes.classList.remove("active");
-      this.activeTab = "activity";
-      this.renderActivityFeed();
-    });
-
-    tabNotes.addEventListener("click", () => {
-      tabNotes.classList.add("active");
-      tabExpenses.classList.remove("active");
-      tabBalances.classList.remove("active");
-      tabActivity.classList.remove("active");
-      contentNotes.classList.add("active");
-      contentExpenses.classList.remove("active");
-      contentBalances.classList.remove("active");
-      contentActivity.classList.remove("active");
-      this.activeTab = "notes";
-      this.renderNotesWall();
-    });
+    const bnavManage = document.getElementById("bnav-manage");
+    if (bnavManage) {
+      bnavManage.addEventListener("click", () => {
+        this.switchTab("manage");
+      });
+    }
 
     // 5. Search and Filters
     document.getElementById("expense-search").addEventListener("input", () => this.renderDashboard());
