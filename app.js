@@ -92,19 +92,23 @@ class SataSplitApp {
 
     // Async cloud sync if Firebase Compat is available
     if (window.firebase && window.firebase.apps && window.firebase.apps.length > 0) {
+      // 1. Cloud Firestore Sync
       try {
         const db = window.firebase.firestore();
         db.collection("groups").doc(this.activeGroup.id).set(this.activeGroup, { merge: true })
-          .then(() => {
-            this.updateSyncBadge(true);
-          })
-          .catch((err) => {
-            console.error("Firestore Save Error:", err);
-            this.updateSyncBadge(false);
-          });
-      } catch(e) {
-        this.updateSyncBadge(false);
-      }
+          .then(() => { this.updateSyncBadge(true); })
+          .catch((err) => { console.error("Firestore Save Error:", err); });
+      } catch(e) {}
+
+      // 2. Realtime Database Sync
+      try {
+        if (window.firebase.database) {
+          const rtdb = window.firebase.database();
+          rtdb.ref("groups/" + this.activeGroup.id).set(this.activeGroup)
+            .then(() => { this.updateSyncBadge(true); })
+            .catch((err) => { console.error("Realtime Database Save Error:", err); });
+        }
+      } catch(e) {}
     }
   }
 
@@ -133,33 +137,55 @@ class SataSplitApp {
       if (!window.firebase.apps.length) {
         window.firebase.initializeApp(window.firebaseConfig);
       }
-      const db = window.firebase.firestore();
-
-      // Ensure doc exists remotely
-      db.collection("groups").doc(groupId).get().then((docSnap) => {
-        if (!docSnap.exists) {
-          db.collection("groups").doc(groupId).set(this.activeGroup).catch(() => {});
-        }
-      }).catch(() => {});
-
-      this.unsubscribeListener = db.collection("groups").doc(groupId).onSnapshot((snapshot) => {
-        if (snapshot && snapshot.exists) {
-          const remoteGroup = snapshot.data();
-          if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
-            this.activeGroup = remoteGroup;
-            localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
-            this.updateControls();
-            this.renderDashboard();
-            this.updateSyncBadge(true);
+      
+      // 1. Initialize Firestore
+      try {
+        const db = window.firebase.firestore();
+        db.collection("groups").doc(groupId).get().then((docSnap) => {
+          if (!docSnap.exists) {
+            db.collection("groups").doc(groupId).set(this.activeGroup).catch(() => {});
           }
-        } else {
-          // Document does not exist yet on cloud, upload local activeGroup
-          db.collection("groups").doc(groupId).set(this.activeGroup).catch(() => {});
+        }).catch(() => {});
+
+        this.unsubscribeListener = db.collection("groups").doc(groupId).onSnapshot((snapshot) => {
+          if (snapshot && snapshot.exists) {
+            const remoteGroup = snapshot.data();
+            if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
+              this.activeGroup = remoteGroup;
+              localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
+              this.updateControls();
+              this.renderDashboard();
+              this.updateSyncBadge(true);
+            }
+          }
+        }, (err) => {
+          console.warn("Firestore sync notice:", err.message);
+        });
+      } catch(e) {}
+
+      // 2. Initialize Realtime Database Sync
+      try {
+        if (window.firebase.database) {
+          const rtdb = window.firebase.database();
+          rtdb.ref("groups/" + groupId).on("value", (snapshot) => {
+            if (snapshot.exists()) {
+              const remoteGroup = snapshot.val();
+              if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
+                this.activeGroup = remoteGroup;
+                localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
+                this.updateControls();
+                this.renderDashboard();
+                this.updateSyncBadge(true);
+              }
+            } else {
+              rtdb.ref("groups/" + groupId).set(this.activeGroup).catch(() => {});
+            }
+          }, (err) => {
+            console.warn("Realtime Database sync notice:", err.message);
+          });
         }
-      }, (err) => {
-        console.warn("Firestore sync notice (running in local mode):", err.message);
-        this.updateSyncBadge(false);
-      });
+      } catch(e) {}
+
     } catch(e) {
       console.warn("Firebase initialization skipped, running in local mode.");
       this.updateSyncBadge(false);
