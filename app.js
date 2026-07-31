@@ -129,13 +129,15 @@ class SataSplitApp {
   }
 
   initFirebase(groupId) {
-    if (!window.firebaseConfig || !window.firebase) {
+    const config = window.firebaseConfig || window.FIREBASE_CONFIG;
+    if (!config || !window.firebase) {
+      console.warn("Firebase configuration not found. Running in Local Mode.");
       this.updateSyncBadge(false);
       return;
     }
     try {
       if (!window.firebase.apps.length) {
-        window.firebase.initializeApp(window.firebaseConfig);
+        window.firebase.initializeApp(config);
       }
       
       // 1. Initialize Firestore
@@ -672,6 +674,7 @@ class SataSplitApp {
         category,
         date: new Date().toISOString().split("T")[0]
       };
+      this.activeGroup.expenses.push(newExp);
       const currency = this.activeGroup.currency || "$";
       this.logActivity(`${paidBy} added expense "${description}" for ${currency}${amount.toFixed(2)}`);
     }
