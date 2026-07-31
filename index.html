@@ -34,6 +34,7 @@
       <div class="header-brand">
         <img src="logo.jpg" alt="Logo" class="header-logo">
         <span class="header-title">SATA Split</span>
+        <span id="sync-status-badge" style="font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 99px; background: rgba(245, 158, 11, 0.2); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3);">Local</span>
       </div>
       <div class="header-actions">
         <button type="button" id="btn-theme-toggle" class="icon-btn" title="Toggle Theme" onclick="if(window.app) window.app.toggleTheme()">🌙</button>
@@ -301,6 +302,17 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+        <!-- v3.0.1 -->
+        <div style="border-left: 3px solid var(--success-color); padding-left: 0.75rem;">
+          <strong style="color: var(--text-primary); font-size: 0.95rem;">v3.0.1 (2026-07-31)</strong>
+          <p style="margin-top: 0.25rem;"><strong>Firebase Cloud Live Sync Status Indicator & Persistence Verification</strong></p>
+          <ul style="padding-left: 1rem; margin-top: 0.25rem; line-height: 1.4;">
+            <li><strong>Cloud Sync Status Badge</strong>: Added real-time "Cloud ☁️" / "Local" status indicator in top header to confirm live Firebase connection.</li>
+            <li><strong>Expense Logging Persistence</strong>: Added auto-upload on expense save so new expenses sync instantly to Firestore cloud database.</li>
+            <li><strong>Dynamic Currency Activity Log</strong>: Fixed activity logging to format amounts using active group currency symbol (`RM`, `$`, `€`).</li>
+          </ul>
+        </div>
+
         <!-- v3.0.0 -->
         <div style="border-left: 3px solid var(--primary-color); padding-left: 0.75rem;">
           <strong style="color: var(--text-primary); font-size: 0.95rem;">v3.0.0 (2026-07-31)</strong>
@@ -317,6 +329,6 @@
   </dialog>
 
   <!-- Load Main Application Logic -->
-  <script type="module" src="app.js?v=3.0.0"></script>
+  <script type="module" src="app.js?v=3.0.1"></script>
 </body>
 </html>

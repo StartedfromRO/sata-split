@@ -94,33 +94,75 @@ class SataSplitApp {
     if (window.firebase && window.firebase.apps && window.firebase.apps.length > 0) {
       try {
         const db = window.firebase.firestore();
-        db.collection("groups").doc(this.activeGroup.id).set(this.activeGroup, { merge: true }).catch(() => {});
-      } catch(e) {}
+        db.collection("groups").doc(this.activeGroup.id).set(this.activeGroup, { merge: true })
+          .then(() => {
+            this.updateSyncBadge(true);
+          })
+          .catch((err) => {
+            console.error("Firestore Save Error:", err);
+            this.updateSyncBadge(false);
+          });
+      } catch(e) {
+        this.updateSyncBadge(false);
+      }
+    }
+  }
+
+  updateSyncBadge(isCloud) {
+    const badge = document.getElementById("sync-status-badge");
+    if (!badge) return;
+    if (isCloud) {
+      badge.textContent = "Cloud ☁️";
+      badge.style.background = "rgba(16, 185, 129, 0.2)";
+      badge.style.color = "var(--success-color)";
+      badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+    } else {
+      badge.textContent = "Local";
+      badge.style.background = "rgba(245, 158, 11, 0.2)";
+      badge.style.color = "var(--warning-color)";
+      badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
     }
   }
 
   initFirebase(groupId) {
-    if (!window.firebaseConfig || !window.firebase) return;
+    if (!window.firebaseConfig || !window.firebase) {
+      this.updateSyncBadge(false);
+      return;
+    }
     try {
       if (!window.firebase.apps.length) {
         window.firebase.initializeApp(window.firebaseConfig);
       }
       const db = window.firebase.firestore();
+
+      // Ensure doc exists remotely
+      db.collection("groups").doc(groupId).get().then((docSnap) => {
+        if (!docSnap.exists) {
+          db.collection("groups").doc(groupId).set(this.activeGroup).catch(() => {});
+        }
+      }).catch(() => {});
+
       this.unsubscribeListener = db.collection("groups").doc(groupId).onSnapshot((snapshot) => {
         if (snapshot && snapshot.exists) {
           const remoteGroup = snapshot.data();
-          if (remoteGroup && remoteGroup.members) {
+          if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
             this.activeGroup = remoteGroup;
             localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
             this.updateControls();
             this.renderDashboard();
+            this.updateSyncBadge(true);
           }
+        } else {
+          // Document does not exist yet on cloud, upload local activeGroup
+          db.collection("groups").doc(groupId).set(this.activeGroup).catch(() => {});
         }
       }, (err) => {
-        console.warn("Firestore sync notice (offline mode active):", err.message);
+        console.warn("Firestore sync notice (running in local mode):", err.message);
+        this.updateSyncBadge(false);
       });
     } catch(e) {
       console.warn("Firebase initialization skipped, running in local mode.");
+      this.updateSyncBadge(false);
     }
   }
 
@@ -604,8 +646,8 @@ class SataSplitApp {
         category,
         date: new Date().toISOString().split("T")[0]
       };
-      this.activeGroup.expenses.push(newExp);
-      this.logActivity(`${paidBy} added expense "${description}" for $${amount.toFixed(2)}`);
+      const currency = this.activeGroup.currency || "$";
+      this.logActivity(`${paidBy} added expense "${description}" for ${currency}${amount.toFixed(2)}`);
     }
 
     this.saveGroupLocally();
