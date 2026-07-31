@@ -1551,9 +1551,18 @@ dialog:not([open]),
 #cloud-setup-dialog:not([open]),
 #api-key-dialog:not([open]),
 #changelog-dialog:not([open]),
-#onboarding-dialog:not([open]) {
+#onboarding-dialog:not([open]),
+#ios-install-dialog:not([open]) {
   display: none !important;
+  visibility: hidden !important;
   pointer-events: none !important;
+  z-index: -99999 !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 /* Exclude Lightbox Dialog from center sizing and override to take full viewport when open */
