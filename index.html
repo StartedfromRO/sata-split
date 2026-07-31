@@ -1103,7 +1103,8 @@
 
   <!-- DIALOG: Onboarding / Invite Welcome Screen -->
   <dialog id="onboarding-dialog">
-    <div class="dialog-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+    <div class="dialog-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; position: relative;">
+      <button type="button" class="dialog-close-btn" style="position: absolute; top: 1rem; right: 1rem;" onclick="document.getElementById('onboarding-dialog').close()">&times;</button>
       <div style="text-align: center;">
         <span style="font-size: 3rem;">👋</span>
         <h2 style="margin-top: 0.5rem; font-size: 1.5rem; color: var(--text-primary);">Welcome to SATA Split</h2>
@@ -1258,6 +1259,6 @@
   </nav>
 
   <!-- Load main app logic -->
-  <script type="module" src="app.js?v=2.1.0"></script>
+  <script type="module" src="app.js?v=2.2.0"></script>
 </body>
 </html>
