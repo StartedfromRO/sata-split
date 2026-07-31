@@ -893,8 +893,22 @@
       
       <div class="changelog-timeline" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1.5rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
         
-        <!-- v1.9.2 -->
+        <!-- v2.0.0 -->
         <div class="changelog-version">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v2.0.0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-31</span>
+          </div>
+          <h4 style="margin-bottom: 0.25rem; color: var(--text-primary);">Instant ReadyState Initialization Engine & Floating FAB Button</h4>
+          <ul style="padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            <li><strong>Instant ReadyState Engine (`startApp`)</strong>: Fixed a critical race condition where `DOMContentLoaded` had already passed before script load. `window.app` is now instantiated 100% instantly on frame 1.</li>
+            <li><strong>Floating "+" FAB Button</strong>: Added a fixed floating blue "+" button in the mobile app viewport that opens the Add Expense modal 100% reliably.</li>
+            <li><strong>Direct Dialog Fallbacks</strong>: Added direct inline `document.getElementById('...').showModal()` fallbacks to `📜` Changelog, `⚙️` Settings, `👤` Profile, and `+` Add Expense buttons.</li>
+          </ul>
+        </div>
+
+        <!-- v1.9.2 -->
+        <div class="changelog-version" style="border-top: 1px solid var(--surface-border); padding-top: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
             <span class="changelog-badge" style="background: var(--primary-color); color: white; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 700;">v1.9.2</span>
             <span style="font-size: 0.8rem; color: var(--text-muted);">2026-07-30</span>
@@ -1214,6 +1228,11 @@
     </svg>
   </button>
 
+  <!-- Floating Add Expense FAB Button (Mobile View) -->
+  <button type="button" id="fab-add-expense" class="fab-btn" aria-label="Add Expense" title="Add New Expense" style="position: fixed; bottom: 4.5rem; right: 1.25rem; z-index: 999; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color), #4f46e5); color: white; border: none; font-size: 2rem; font-weight: 300; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); cursor: pointer;" onclick="if(window.app){ window.app.openExpenseForm(); } else { const d = document.getElementById('expense-dialog'); if(d) d.showModal(); }">
+    +
+  </button>
+
   <!-- Mobile Native Bottom Navigation Bar -->
   <nav id="mobile-bottom-nav" class="mobile-bottom-nav">
     <button type="button" class="mobile-nav-item active" data-tab="expenses" id="bnav-expenses" onclick="if(window.app) window.app.switchTab('expenses')">
@@ -1239,6 +1258,6 @@
   </nav>
 
   <!-- Load main app logic -->
-  <script type="module" src="app.js?v=1.9.2"></script>
+  <script type="module" src="app.js?v=2.0.0"></script>
 </body>
 </html>

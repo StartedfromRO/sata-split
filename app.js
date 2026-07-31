@@ -3109,7 +3109,16 @@ class SataSplitApp {
   }
 }
 
-// Instantiate the application on page load
-window.addEventListener("DOMContentLoaded", () => {
-  window.app = new SataSplitApp();
-});
+// Instantiate application safely regardless of document readyState
+function startApp() {
+  if (!window.app) {
+    window.app = new SataSplitApp();
+    console.log("SATA Split application instantiated successfully.");
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp);
+} else {
+  startApp();
+}
