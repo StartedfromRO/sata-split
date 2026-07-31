@@ -647,41 +647,76 @@ class SataSplitApp {
   }
 
   saveExpenseForm() {
-    const id = document.getElementById("input-expense-id").value;
-    const description = document.getElementById("input-expense-desc").value.trim();
-    const amount = parseFloat(document.getElementById("input-expense-amount").value);
-    const paidBy = document.getElementById("input-expense-paidby").value;
-    const category = document.getElementById("input-expense-category").value;
-
-    if (!description || isNaN(amount) || amount <= 0) {
-      this.showToast("Please enter a valid description and amount!", "error");
-      return;
-    }
-
-    if (id) {
-      // Edit
-      const expIndex = this.activeGroup.expenses.findIndex(e => e.id === id);
-      if (expIndex !== -1) {
-        this.activeGroup.expenses[expIndex] = { ...this.activeGroup.expenses[expIndex], description, amount, paidBy, category };
+    try {
+      if (!this.activeGroup) {
+        this.showToast("No active group loaded!", "error");
+        return;
       }
-    } else {
-      // Add
-      const newExp = {
-        id: "exp-" + Date.now(),
-        description,
-        amount,
-        paidBy,
-        category,
-        date: new Date().toISOString().split("T")[0]
-      };
-      this.activeGroup.expenses.push(newExp);
-      const currency = this.activeGroup.currency || "$";
-      this.logActivity(`${paidBy} added expense "${description}" for ${currency}${amount.toFixed(2)}`);
-    }
 
-    this.saveGroupLocally();
-    document.getElementById("modal-expense").close();
-    this.showToast("Expense saved successfully!", "success");
+      this.activeGroup.expenses = this.activeGroup.expenses || [];
+      
+      const id = document.getElementById("input-expense-id")?.value || "";
+      const description = (document.getElementById("input-expense-desc")?.value || "").trim();
+      const amountVal = document.getElementById("input-expense-amount")?.value;
+      const amount = parseFloat(amountVal);
+      const paidBy = document.getElementById("input-expense-paidby")?.value || this.currentUser || (this.activeGroup.members[0] || "Ban");
+      const category = document.getElementById("input-expense-category")?.value || "meals";
+
+      if (!description) {
+        this.showToast("Please enter an expense description!", "error");
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) {
+        this.showToast("Please enter a valid expense amount!", "error");
+        return;
+      }
+
+      if (id) {
+        // Edit existing expense
+        const expIndex = this.activeGroup.expenses.findIndex(e => e.id === id);
+        if (expIndex !== -1) {
+          this.activeGroup.expenses[expIndex] = { 
+            ...this.activeGroup.expenses[expIndex], 
+            description, 
+            amount, 
+            paidBy, 
+            category 
+          };
+        } else {
+          this.activeGroup.expenses.push({
+            id: "exp-" + Date.now(),
+            description,
+            amount,
+            paidBy,
+            category,
+            date: new Date().toISOString().split("T")[0]
+          });
+        }
+      } else {
+        // Add new expense
+        const newExp = {
+          id: "exp-" + Date.now(),
+          description,
+          amount,
+          paidBy,
+          category,
+          date: new Date().toISOString().split("T")[0]
+        };
+        this.activeGroup.expenses.push(newExp);
+        const currency = this.activeGroup.currency || "$";
+        this.logActivity(`${paidBy} added expense "${description}" for ${currency}${amount.toFixed(2)}`);
+      }
+
+      this.saveGroupLocally();
+      
+      const modal = document.getElementById("modal-expense");
+      if (modal) modal.close();
+      
+      this.showToast("Expense saved successfully! 🎉", "success");
+    } catch(err) {
+      console.error("Save Expense Error:", err);
+      this.showToast("Failed to save expense. Please try again.", "error");
+    }
   }
 
   openSettleModal(payer, payee, amount) {
