@@ -395,11 +395,20 @@ class SataSplitApp {
         this.renderDashboard();
         this.checkOnboarding();
       } else {
-        // Group data is null (does not exist in storage)
-        if (groupId === "default-group") {
-          console.log("default-group not found. Creating it...");
-          const defaultGroup = {
-            id: "default-group",
+        // Group data is null (does not exist or Firebase offline/connecting)
+        let fallbackGroup = null;
+        
+        // Try local backup
+        const localBackup = localStorage.getItem("fairshare_last_active_group_backup");
+        if (localBackup) {
+          try {
+            fallbackGroup = JSON.parse(localBackup);
+          } catch(e) {}
+        }
+        
+        if (!fallbackGroup) {
+          fallbackGroup = {
+            id: groupId || "default-group",
             name: "Apartment Share",
             currency: "$",
             members: ["Ban", "ED", "Juin", "Bin", "Dennis", "Yan"],
@@ -415,11 +424,24 @@ class SataSplitApp {
             },
             updatedAt: Date.now()
           };
-          await this.storage.saveGroup(defaultGroup);
-        } else {
-          this.showToast("Group not found. Redirecting to default group.", "error");
-          this.switchGroup("default-group");
         }
+
+        this.activeGroup = fallbackGroup;
+        localStorage.setItem("fairshare_last_active_group", this.activeGroup.id);
+
+        const savedName = localStorage.getItem("fairshare_my_name");
+        if (savedName && this.activeGroup.members.includes(savedName)) {
+          this.currentUser = savedName;
+        } else if (!this.activeGroup.members.includes(this.currentUser)) {
+          this.currentUser = this.activeGroup.members[0] || "Ban";
+        }
+
+        this.updateGroupSelects();
+        this.renderDashboard();
+        this.checkOnboarding();
+        
+        // Attempt to save fallback asynchronously without blocking UI execution
+        this.storage.saveGroup(this.activeGroup).catch(() => {});
       }
     });
 

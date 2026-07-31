@@ -1735,7 +1735,7 @@ body.light-theme .mobile-bottom-nav {
   transform: scale(0.9);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .mobile-bottom-nav {
     max-width: 100%;
   }
@@ -1743,6 +1743,10 @@ body.light-theme .mobile-bottom-nav {
   .mobile-fab {
     left: auto;
     right: 1.25rem;
+  }
+
+  .desktop-only-btn {
+    display: none !important;
   }
 }
 
