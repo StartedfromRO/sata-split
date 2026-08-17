@@ -241,7 +241,10 @@
           </select>
         </div>
 
-        <button type="submit" class="btn-submit" style="margin-top: 0.5rem;" onclick="if(window.app){ window.app.saveExpenseForm(); return false; }">Save Expense</button>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button type="submit" class="btn-submit" style="flex: 1;" onclick="if(window.app){ window.app.saveExpenseForm(); return false; }">Save Expense</button>
+          <button type="button" id="btn-delete-expense" class="btn-submit" style="flex: 1; background: var(--danger-color); display: none;" onclick="if(window.app){ window.app.deleteExpense(document.getElementById('input-expense-id').value); }">Delete Expense 🗑️</button>
+        </div>
       </form>
     </div>
   </dialog>
@@ -307,6 +310,17 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+        <!-- v3.0.9 -->
+        <div style="border-left: 3px solid var(--success-color); padding-left: 0.75rem;">
+          <strong style="color: var(--text-primary); font-size: 0.95rem;">v3.0.9 (2026-08-17)</strong>
+          <p style="margin-top: 0.25rem;"><strong>Expense Deletion Feature & Dual Delete Action Triggers</strong></p>
+          <ul style="padding-left: 1rem; margin-top: 0.25rem; line-height: 1.4;">
+            <li><strong>Quick Delete Button (🗑️)</strong>: Added a 🗑️ delete icon button to every expense card for 1-tap quick deletion.</li>
+            <li><strong>Modal Delete Expense Button</strong>: Added a red "Delete Expense 🗑️" button inside the expense edit dialog.</li>
+            <li><strong>Real-Time Ledger Update</strong>: Deleting an expense updates member balances, logs the activity, and syncs live to Cloud Firestore & Realtime Database.</li>
+          </ul>
+        </div>
+
         <!-- v3.0.8 -->
         <div style="border-left: 3px solid var(--success-color); padding-left: 0.75rem;">
           <strong style="color: var(--text-primary); font-size: 0.95rem;">v3.0.8 (2026-08-17)</strong>
@@ -404,6 +418,6 @@
   </dialog>
 
   <!-- Load Main Application Logic -->
-  <script type="module" src="app.js?v=3.0.8"></script>
+  <script type="module" src="app.js?v=3.0.9"></script>
 </body>
 </html>

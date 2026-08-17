@@ -511,9 +511,12 @@ class SataSplitApp {
             <div class="card-meta">Paid by <strong>${exp.paidBy || "Member"}</strong></div>
           </div>
         </div>
-        <div class="card-right">
-          <div class="card-amount">${currency}${amount.toFixed(2)}</div>
-          <div class="card-split-tag">Split Equally</div>
+        <div class="card-right" style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="text-align: right;">
+            <div class="card-amount">${currency}${amount.toFixed(2)}</div>
+            <div class="card-split-tag">Split Equally</div>
+          </div>
+          <button type="button" class="icon-btn" title="Delete Expense" style="font-size: 0.9rem; padding: 0.3rem; border-radius: 8px; color: var(--danger-color);" onclick="event.stopPropagation(); if(window.app){ window.app.deleteExpense('${exp.id}'); }">🗑️</button>
         </div>
       `;
 
@@ -725,17 +728,44 @@ class SataSplitApp {
       paidBySelect.appendChild(opt);
     });
 
+    const deleteBtn = document.getElementById("btn-delete-expense");
+
     if (expenseToEdit) {
       document.getElementById("input-expense-id").value = expenseToEdit.id;
       document.getElementById("input-expense-desc").value = expenseToEdit.description;
       document.getElementById("input-expense-amount").value = expenseToEdit.amount;
       document.getElementById("input-expense-paidby").value = expenseToEdit.paidBy;
       document.getElementById("input-expense-category").value = expenseToEdit.category || "meals";
+      if (deleteBtn) deleteBtn.style.display = "block";
     } else {
       document.getElementById("input-expense-id").value = "";
+      if (deleteBtn) deleteBtn.style.display = "none";
     }
 
     dialog.showModal();
+  }
+
+  deleteExpense(expenseId) {
+    if (!this.activeGroup || !expenseId) return;
+    
+    const expensesArray = Array.isArray(this.activeGroup.expenses) 
+      ? this.activeGroup.expenses 
+      : Object.values(this.activeGroup.expenses || {});
+
+    const exp = expensesArray.find(e => e.id === expenseId);
+    const desc = exp ? exp.description : "Expense";
+
+    if (confirm(`Are you sure you want to delete "${desc}"?`)) {
+      this.activeGroup.expenses = expensesArray.filter(e => e.id !== expenseId);
+      this.logActivity(`${this.currentUser} deleted expense "${desc}"`);
+      
+      this.saveGroupLocally();
+      
+      const modal = document.getElementById("modal-expense");
+      if (modal) modal.close();
+      
+      this.showToast(`Deleted expense "${desc}" 🗑️`, "success");
+    }
   }
 
   saveExpenseForm() {
