@@ -692,16 +692,27 @@ class SataSplitApp {
     this.activeGroup.members.forEach(m => {
       const card = document.createElement("div");
       card.className = "balance-card";
+      card.style.flexDirection = "column";
+      card.style.alignItems = "stretch";
+      card.style.gap = "0.5rem";
+
       const bank = (this.activeGroup.bankDetails && this.activeGroup.bankDetails[m]) || {};
-      
+      const hasQr = !!bank.qrCodeUrl;
+      const bankInfoText = bank.bankName 
+        ? `${bank.bankName} - ${bank.accountNumber}${bank.fullName ? ` (${bank.fullName})` : ''}`
+        : 'No bank details saved';
+
       card.innerHTML = `
-        <div>
-          <strong style="font-size: 0.95rem;">${m}</strong>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">
-            ${bank.bankName ? `${bank.bankName}: ${bank.accountNumber}` : 'No bank details saved'}
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="font-size: 0.95rem; color: var(--text-primary);">${m}</strong>
+            ${hasQr ? '<span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: var(--success-color); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.1rem 0.4rem; border-radius: 99px; margin-left: 0.4rem; font-weight: 700;">📷 QR Ready</span>' : ''}
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">
+              ${bankInfoText}
+            </div>
           </div>
+          <button type="button" class="btn-submit" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="if(window.app) window.app.openMemberEditModal('${m}')">Edit Bank & QR ✏️</button>
         </div>
-        <span style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Member</span>
       `;
       list.appendChild(card);
     });
@@ -863,7 +874,144 @@ class SataSplitApp {
     });
 
     document.getElementById("input-settle-amount").value = amount ? amount.toFixed(2) : "";
+    
+    payeeSelect.onchange = () => this.updateSettlePayeeInfo();
+    this.updateSettlePayeeInfo();
+
     dialog.showModal();
+  }
+
+  updateSettlePayeeInfo() {
+    const payeeSelect = document.getElementById("input-settle-payee");
+    if (!payeeSelect || !this.activeGroup) return;
+    const payee = payeeSelect.value;
+    const bank = (this.activeGroup.bankDetails && this.activeGroup.bankDetails[payee]) || {};
+
+    const payeeNameEl = document.getElementById("settle-payee-name");
+    const payeeInfoEl = document.getElementById("settle-payee-bank-info");
+    const payeeQrContainer = document.getElementById("settle-payee-qr-preview");
+    const payeeQrImg = document.getElementById("img-settle-payee-qr");
+
+    if (payeeNameEl) payeeNameEl.textContent = payee;
+
+    if (payeeInfoEl) {
+      if (bank.bankName || bank.accountNumber) {
+        let html = `<strong>Bank:</strong> ${bank.bankName || 'Not specified'}<br>`;
+        html += `<strong>Account:</strong> ${bank.accountNumber || 'Not specified'} `;
+        if (bank.accountNumber) {
+          html += `<button type="button" style="background: none; border: none; color: var(--primary-color); cursor: pointer; text-decoration: underline; font-size: 0.75rem;" onclick="navigator.clipboard.writeText('${bank.accountNumber}'); if(window.app) window.app.showToast('Account number copied! 📋', 'info');">📋 Copy</button>`;
+        }
+        if (bank.fullName) html += `<br><strong>Name:</strong> ${bank.fullName}`;
+        payeeInfoEl.innerHTML = html;
+      } else {
+        payeeInfoEl.innerHTML = `<em>No bank account saved for ${payee}. Edit details in Manage tab.</em>`;
+      }
+    }
+
+    if (payeeQrContainer && payeeQrImg) {
+      if (bank.qrCodeUrl) {
+        payeeQrImg.src = bank.qrCodeUrl;
+        payeeQrContainer.style.display = "block";
+      } else {
+        payeeQrContainer.style.display = "none";
+      }
+    }
+  }
+
+  openMemberEditModal(memberName) {
+    const dialog = document.getElementById("modal-member-edit");
+    if (!dialog) return;
+
+    const bank = (this.activeGroup.bankDetails && this.activeGroup.bankDetails[memberName]) || {};
+
+    document.getElementById("input-member-edit-name").value = memberName;
+    document.getElementById("input-member-edit-nickname").value = memberName;
+    document.getElementById("input-member-edit-fullname").value = bank.fullName || "";
+    document.getElementById("input-member-edit-bankname").value = bank.bankName || "";
+    document.getElementById("input-member-edit-accountno").value = bank.accountNumber || "";
+    document.getElementById("input-member-edit-qrdata").value = bank.qrCodeUrl || "";
+    document.getElementById("input-member-edit-qrfile").value = "";
+
+    const previewBox = document.getElementById("member-qr-preview-box");
+    const previewImg = document.getElementById("img-member-qr-preview");
+
+    if (bank.qrCodeUrl) {
+      previewImg.src = bank.qrCodeUrl;
+      previewBox.style.display = "block";
+    } else {
+      previewBox.style.display = "none";
+    }
+
+    dialog.showModal();
+  }
+
+  onQrFileSelected(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 500;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+        document.getElementById("input-member-edit-qrdata").value = dataUrl;
+        const previewBox = document.getElementById("member-qr-preview-box");
+        const previewImg = document.getElementById("img-member-qr-preview");
+        previewImg.src = dataUrl;
+        previewBox.style.display = "block";
+        this.showToast("QR code image loaded & compressed! 📷", "info");
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeMemberQrCode() {
+    document.getElementById("input-member-edit-qrdata").value = "";
+    document.getElementById("input-member-edit-qrfile").value = "";
+    document.getElementById("member-qr-preview-box").style.display = "none";
+    this.showToast("QR code removed. Save to apply.", "info");
+  }
+
+  saveMemberEditForm() {
+    const memberName = document.getElementById("input-member-edit-name").value;
+    if (!memberName || !this.activeGroup) return;
+
+    const fullName = (document.getElementById("input-member-edit-fullname").value || "").trim();
+    const bankName = (document.getElementById("input-member-edit-bankname").value || "").trim();
+    const accountNumber = (document.getElementById("input-member-edit-accountno").value || "").trim();
+    const qrCodeUrl = document.getElementById("input-member-edit-qrdata").value || "";
+
+    this.activeGroup.bankDetails = this.activeGroup.bankDetails || {};
+    this.activeGroup.bankDetails[memberName] = {
+      fullName,
+      bankName,
+      accountNumber,
+      qrCodeUrl
+    };
+
+    this.saveGroupLocally();
+    const modal = document.getElementById("modal-member-edit");
+    if (modal) modal.close();
+    this.showToast(`Saved bank & QR details for ${memberName}! 💳✨`, "success");
   }
 
   saveSettlementForm() {
