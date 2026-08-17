@@ -168,7 +168,47 @@ class SataSplitApp {
       badge.textContent = "Local";
       badge.style.background = "rgba(245, 158, 11, 0.2)";
       badge.style.color = "var(--warning-color)";
-      badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+    }
+  }
+
+  forceCloudRefresh() {
+    this.showToast("Fetching latest data from Cloud... ☁️", "info");
+    if (!this.activeGroup) return;
+    const groupId = this.activeGroup.id;
+
+    if (window.firebase && window.firebase.apps && window.firebase.apps.length > 0) {
+      try {
+        const db = window.firebase.firestore();
+        db.collection("groups").doc(groupId).get().then((docSnap) => {
+          if (docSnap.exists) {
+            const remoteGroup = docSnap.data();
+            this.activeGroup = this.normalizeGroup(remoteGroup);
+            localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(this.activeGroup));
+            this.updateControls();
+            this.renderDashboard();
+            this.updateSyncBadge(true);
+            this.showToast(`Synced ${this.activeGroup.expenses.length} expenses from Cloud! 🎉`, "success");
+          }
+        }).catch((err) => {
+          console.error("Manual Firestore fetch error:", err);
+        });
+
+        if (window.firebase.database) {
+          const rtdb = window.firebase.database();
+          rtdb.ref("groups/" + groupId).once("value").then((snapshot) => {
+            if (snapshot.exists()) {
+              const remoteGroup = snapshot.val();
+              this.activeGroup = this.normalizeGroup(remoteGroup);
+              localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(this.activeGroup));
+              this.updateControls();
+              this.renderDashboard();
+              this.updateSyncBadge(true);
+            }
+          });
+        }
+      } catch(e) {
+        console.error("Force Cloud Refresh error:", e);
+      }
     }
   }
 
