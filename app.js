@@ -100,6 +100,8 @@ class SataSplitApp {
       group.activity = [];
     }
 
+    group.bankDetails = group.bankDetails || {};
+
     return group;
   }
 
@@ -956,7 +958,7 @@ class SataSplitApp {
         const canvas = document.createElement("canvas");
         let width = img.width;
         let height = img.height;
-        const maxDim = 500;
+        const maxDim = 400;
         if (width > maxDim || height > maxDim) {
           if (width > height) {
             height = Math.round((height * maxDim) / width);
@@ -970,14 +972,14 @@ class SataSplitApp {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
 
         document.getElementById("input-member-edit-qrdata").value = dataUrl;
         const previewBox = document.getElementById("member-qr-preview-box");
         const previewImg = document.getElementById("img-member-qr-preview");
         previewImg.src = dataUrl;
         previewBox.style.display = "block";
-        this.showToast("QR code image loaded & compressed! 📷", "info");
+        this.showToast("QR code loaded & optimized for cloud sync! 📷", "info");
       };
       img.src = e.target.result;
     };
@@ -1008,6 +1010,7 @@ class SataSplitApp {
       qrCodeUrl
     };
 
+    this.logActivity(`${memberName} updated bank details & QR code 💳`);
     this.saveGroupLocally();
     const modal = document.getElementById("modal-member-edit");
     if (modal) modal.close();
