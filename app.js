@@ -59,6 +59,50 @@ class SataSplitApp {
     };
   }
 
+  normalizeGroup(group) {
+    if (!group) return group;
+
+    if (group.members && !Array.isArray(group.members)) {
+      group.members = Object.values(group.members);
+    } else {
+      group.members = group.members || ["Ban"];
+    }
+
+    if (group.expenses) {
+      if (!Array.isArray(group.expenses)) {
+        group.expenses = Object.values(group.expenses);
+      }
+    } else {
+      group.expenses = [];
+    }
+
+    if (group.settlements) {
+      if (!Array.isArray(group.settlements)) {
+        group.settlements = Object.values(group.settlements);
+      }
+    } else {
+      group.settlements = [];
+    }
+
+    if (group.notes) {
+      if (!Array.isArray(group.notes)) {
+        group.notes = Object.values(group.notes);
+      }
+    } else {
+      group.notes = [];
+    }
+
+    if (group.activity) {
+      if (!Array.isArray(group.activity)) {
+        group.activity = Object.values(group.activity);
+      }
+    } else {
+      group.activity = [];
+    }
+
+    return group;
+  }
+
   loadGroup(groupId) {
     let group = null;
     const rawLocal = localStorage.getItem(`fairshare_group_${groupId}`);
@@ -71,7 +115,7 @@ class SataSplitApp {
       localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(group));
     }
 
-    this.activeGroup = group;
+    this.activeGroup = this.normalizeGroup(group);
     localStorage.setItem("fairshare_last_active_group", groupId);
 
     // Ensure currentUser is in members
@@ -152,9 +196,9 @@ class SataSplitApp {
         this.unsubscribeListener = db.collection("groups").doc(groupId).onSnapshot((snapshot) => {
           if (snapshot && snapshot.exists) {
             const remoteGroup = snapshot.data();
-            if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
-              this.activeGroup = remoteGroup;
-              localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
+            if (remoteGroup && remoteGroup.members) {
+              this.activeGroup = this.normalizeGroup(remoteGroup);
+              localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(this.activeGroup));
               this.updateControls();
               this.renderDashboard();
               this.updateSyncBadge(true);
@@ -172,9 +216,9 @@ class SataSplitApp {
           rtdb.ref("groups/" + groupId).on("value", (snapshot) => {
             if (snapshot.exists()) {
               const remoteGroup = snapshot.val();
-              if (remoteGroup && remoteGroup.members && remoteGroup.members.length > 0) {
-                this.activeGroup = remoteGroup;
-                localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(remoteGroup));
+              if (remoteGroup && remoteGroup.members) {
+                this.activeGroup = this.normalizeGroup(remoteGroup);
+                localStorage.setItem(`fairshare_group_${groupId}`, JSON.stringify(this.activeGroup));
                 this.updateControls();
                 this.renderDashboard();
                 this.updateSyncBadge(true);
@@ -390,11 +434,18 @@ class SataSplitApp {
     if (!list) return;
     list.innerHTML = "";
 
-    const query = (document.getElementById("input-search")?.value || "").toLowerCase();
+    const expensesArray = Array.isArray(this.activeGroup?.expenses) 
+      ? this.activeGroup.expenses 
+      : (this.activeGroup?.expenses ? Object.values(this.activeGroup.expenses) : []);
+
+    const query = (document.getElementById("input-search")?.value || "").toLowerCase().trim();
     const category = document.getElementById("select-category-filter")?.value || "all";
 
-    const filtered = (this.activeGroup.expenses || []).filter(exp => {
-      const matchQuery = exp.description.toLowerCase().includes(query) || exp.paidBy.toLowerCase().includes(query);
+    const filtered = expensesArray.filter(exp => {
+      if (!exp) return false;
+      const desc = String(exp.description || "").toLowerCase();
+      const payer = String(exp.paidBy || "").toLowerCase();
+      const matchQuery = !query || desc.includes(query) || payer.includes(query);
       const matchCat = category === "all" || exp.category === category;
       return matchQuery && matchCat;
     });
@@ -404,23 +455,24 @@ class SataSplitApp {
       return;
     }
 
-    filtered.forEach(exp => {
+    filtered.slice().reverse().forEach(exp => {
       const card = document.createElement("div");
       card.className = "expense-card";
       
       const iconMap = { meals: "🍔", groceries: "🛒", transport: "🚕", entertainment: "🍿", utilities: "⚡", other: "📦" };
       const icon = iconMap[exp.category] || "🧾";
+      const amount = parseFloat(exp.amount || 0);
 
       card.innerHTML = `
         <div class="card-left">
           <div class="card-icon">${icon}</div>
           <div class="card-details">
-            <div class="card-title">${exp.description}</div>
-            <div class="card-meta">Paid by <strong>${exp.paidBy}</strong></div>
+            <div class="card-title">${exp.description || "Expense"}</div>
+            <div class="card-meta">Paid by <strong>${exp.paidBy || "Member"}</strong></div>
           </div>
         </div>
         <div class="card-right">
-          <div class="card-amount">${currency}${parseFloat(exp.amount).toFixed(2)}</div>
+          <div class="card-amount">${currency}${amount.toFixed(2)}</div>
           <div class="card-split-tag">Split Equally</div>
         </div>
       `;
